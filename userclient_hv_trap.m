@@ -60,6 +60,6 @@ kern_return_t hv_trap(unsigned int hv_call, void* hv_arg) {
     return 0x1337;
   }
   uint64_t signed_code_ptr = gCodePtrs[hv_call];
-  return IOConnectTrap6(gUserClient, /*index=*/0, /*arg1*/ hv_arg, /*arg2*/ 0, signed_code_ptr,
-                        gDiscriminant, 0, 0);
+  return IOConnectTrap6(gUserClient, /*index=*/0, /*arg1*/ (uintptr_t)hv_arg, /*arg2*/ 0,
+                        signed_code_ptr, gDiscriminant, 0, 0);
 }
