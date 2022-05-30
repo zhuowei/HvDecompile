@@ -4,36 +4,6 @@
 #include <assert.h>
 #include "hv_kernel_structs.h"
 
-#if NO_HVF_HEADER
-@protocol OS_hv_vcpu_config;
-@class NSObject;
-
-typedef kern_return_t hv_return_t;
-typedef void* hv_vm_config_t;
-typedef uint64_t hv_ipa_t;
-typedef uint64_t hv_vcpu_t;
-typedef uint64_t hv_exception_syndrome_t;
-typedef uint64_t hv_exception_address_t;
-typedef uint64_t hv_exit_reason_t;
-typedef NSObject<OS_hv_vcpu_config>* hv_vcpu_config_t;
-typedef uint64_t hv_memory_flags_t;
-#define HV_BAD_ARGUMENT 0xfae94003;
-#define HV_UNSUPPORTED 0xfae9400f;
-
-// from hv_vcpu_types.h
-
-typedef struct hv_vcpu_exit_exception {
-  hv_exception_syndrome_t syndrome;
-  hv_exception_address_t virtual_address;
-  hv_ipa_t physical_address;
-} hv_vcpu_exit_exception_t;
-
-typedef struct hv_vcpu_exit {
-  hv_exit_reason_t reason;
-  hv_vcpu_exit_exception_t exception;
-} hv_vcpu_exit_t;
-#endif  // NO_HVF_HEADER
-
 static_assert(sizeof(hv_vcpu_exit_t) == 0x20, "hv_vcpu_exit");
 
 #define HV_CALL_VM_GET_CAPABILITIES 0
