@@ -31,6 +31,13 @@ __attribute__((naked)) uint64_t hv_trap(unsigned int hv_call, void* hv_arg) {
 }
 #endif
 
+static uint64_t hv_trap_wrap(unsigned int hv_call, void* hv_arg) {
+  uint64_t err = hv_trap(hv_call, hv_arg);
+  printf("hv_trap %u %p returned %llx\n", hv_call, hv_arg, err);
+  return err;
+}
+//#define hv_trap hv_trap_wrap
+
 // type lookup hv_vm_create_t
 struct hv_vm_create_kernel_args {
   uint64_t min_ipa;
@@ -95,11 +102,19 @@ static_assert(sizeof(struct hv_vcpu_zone) == 0x8000, "hv_vcpu_zone");
 
 struct hv_vcpu_data {
   struct hv_vcpu_zone* vcpu_zone;  // 0x0
-  // TODO(zhuowei)
-  char filler[0xe8 - 0x8];      // 0x8
-  uint64_t pending_interrupts;  // 0xe8
-  hv_vcpu_exit_t exit;          // 0xf0
-  char filler2[0x8];            // 0x110
+  uint64_t aa64dfr0_el1;           // 0x8
+  uint64_t aa64dfr1_el1;           // 0x10
+  uint64_t aa64isar0_el1;          // 0x18
+  uint64_t aa64isar1_el1;          // 0x20
+  uint64_t aa64mmfr0_el1;          // 0x28
+  uint64_t aa64mmfr1_el1;          // 0x30
+  uint64_t aa64mmfr2_el1;          // 0x38
+  uint64_t aa64pfr0_el1;           // 0x40
+  uint64_t aa64pfr1_el1;           // 0x48
+  char filler[0xe8 - 0x50];        // 0x50
+  uint64_t pending_interrupts;     // 0xe8
+  hv_vcpu_exit_t exit;             // 0xf0
+  char filler2[0x8];               // 0x110
 };
 
 static_assert(sizeof(struct hv_vcpu_data) == 0x118, "hv_vcpu_data");
@@ -178,39 +193,46 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
     vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= vcpu_data->pending_interrupts;
     vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
   }
-  hv_return_t err = hv_trap(HV_CALL_VCPU_RUN, nil);
-  if (err) {
-    return err;
+  while (true) {
+    hv_return_t err = hv_trap(HV_CALL_VCPU_RUN, nil);
+    if (err) {
+      return err;
+    }
+    printf("exit = %d (esr = %x)\n", vcpu_data->vcpu_zone->ro.exit.vmexit_reason,
+           vcpu_data->vcpu_zone->ro.exit.vmexit_esr);
+    hv_vcpu_exit_t* exit = &vcpu_data->exit;
+    switch (vcpu_data->vcpu_zone->ro.exit.vmexit_reason) {
+      case 0: {
+        exit->reason = HV_EXIT_REASON_CANCELED;
+        break;
+      }
+      case 1:  // hvc call?
+      case 6:  // memory fault?
+      case 8: {
+        exit->reason = HV_EXIT_REASON_EXCEPTION;
+        exit->exception.syndrome = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
+        exit->exception.virtual_address = vcpu_data->vcpu_zone->ro.exit.vmexit_far;
+        exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
+        // TODO(zhuowei): handle registers
+        break;
+      }
+      case 3:
+      case 4: {
+        exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
+        break;
+      }
+      case 2:
+      case 11: {
+        // keep going!
+        continue;
+      }
+      default: {
+        exit->reason = HV_EXIT_REASON_UNKNOWN;
+        break;
+      }
+    }
+    return 0;
   }
-  printf("exit = %d (esr = %x)\n", vcpu_data->vcpu_zone->ro.exit.vmexit_reason,
-         vcpu_data->vcpu_zone->ro.exit.vmexit_esr);
-  hv_vcpu_exit_t* exit = &vcpu_data->exit;
-  switch (vcpu_data->vcpu_zone->ro.exit.vmexit_reason) {
-    case 0: {
-      exit->reason = HV_EXIT_REASON_CANCELED;
-      break;
-    }
-    case 1:  // hvc call?
-    case 6:  // memory fault?
-    case 8: {
-      exit->reason = HV_EXIT_REASON_EXCEPTION;
-      exit->exception.syndrome = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
-      exit->exception.virtual_address = vcpu_data->vcpu_zone->ro.exit.vmexit_far;
-      exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
-      // TODO(zhuowei): handle registers
-      break;
-    }
-    case 3:
-    case 4: {
-      exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
-      break;
-    }
-    default: {
-      exit->reason = HV_EXIT_REASON_UNKNOWN;
-      break;
-    }
-  }
-  return 0;
 }
 
 hv_return_t hv_vcpu_get_reg(hv_vcpu_t vcpu, hv_reg_t reg, uint64_t* value) {
@@ -296,43 +318,119 @@ static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
               "HV_SYS_REG_DBGBVR0_EL1");
 
 hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* value) {
-  if (sys_reg >= HV_SYS_REG_ID_AA64ISAR0_EL1 && sys_reg <= HV_SYS_REG_ID_AA64MMFR2_EL1) {
-    printf("TODO(zhuowei): not implemented\n");
-    return HV_BAD_ARGUMENT;
+  struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
+  struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
+  switch (sys_reg) {
+    case HV_SYS_REG_MIDR_EL1:
+      *value = vcpu_zone->rw.controls.vpidr_el2;
+      return 0;
+    case HV_SYS_REG_MPIDR_EL1:
+      *value = vcpu_zone->rw.controls.vmpidr_el2;
+      return 0;
+    case HV_SYS_REG_ID_AA64PFR0_EL1:
+      *value = vcpu_data->aa64pfr0_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64PFR1_EL1:
+      *value = vcpu_data->aa64pfr1_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64DFR0_EL1:
+      *value = vcpu_data->aa64dfr0_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64DFR1_EL1:
+      *value = vcpu_data->aa64dfr1_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64ISAR0_EL1:
+      *value = vcpu_data->aa64isar0_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64ISAR1_EL1:
+      *value = vcpu_data->aa64isar1_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64MMFR0_EL1:
+      *value = vcpu_data->aa64mmfr0_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64MMFR1_EL1:
+      *value = vcpu_data->aa64mmfr1_el1;
+      return 0;
+    case HV_SYS_REG_ID_AA64MMFR2_EL1:
+      *value = vcpu_data->aa64mmfr2_el1;
+      return 0;
+    default:
+      break;
   }
   // TODO(zhuowei): handle the special cases
   uint64_t offset = 0;
   uint64_t sync_mask = 0;
   bool found = find_sys_reg(sys_reg, &offset, &sync_mask);
   if (!found) {
+    printf("invalid get sys reg: %x\n", sys_reg);
     return HV_BAD_ARGUMENT;
   }
   if (sync_mask) {
     // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC only when needed
     hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
   }
-  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
   *value = *(uint64_t*)((char*)(&vcpu_zone->rw) + offset);
   return 0;
 }
 
 hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t value) {
-  if (sys_reg >= HV_SYS_REG_ID_AA64ISAR0_EL1 && sys_reg <= HV_SYS_REG_ID_AA64MMFR2_EL1) {
-    printf("TODO(zhuowei): not implemented\n");
-    return HV_BAD_ARGUMENT;
+  struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
+  struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
+  switch (sys_reg) {
+    case HV_SYS_REG_MIDR_EL1: {
+      vcpu_zone->rw.controls.vpidr_el2 = value;
+      vcpu_zone->rw.state_dirty |= 0x4;
+      return 0;
+    }
+    case HV_SYS_REG_MPIDR_EL1: {
+      vcpu_zone->rw.controls.vmpidr_el2 = value;
+      vcpu_zone->rw.state_dirty |= 0x4;
+      return 0;
+    }
+      // the kernel doesn't set these - userspace traps and handles these
+    case HV_SYS_REG_ID_AA64PFR0_EL1:
+      vcpu_data->aa64pfr0_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64PFR1_EL1:
+      vcpu_data->aa64pfr1_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64DFR0_EL1:
+      vcpu_data->aa64dfr0_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64DFR1_EL1:
+      vcpu_data->aa64dfr1_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64ISAR0_EL1:
+      vcpu_data->aa64isar0_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64ISAR1_EL1:
+      vcpu_data->aa64isar1_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64MMFR0_EL1:
+      vcpu_data->aa64mmfr0_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64MMFR1_EL1:
+      vcpu_data->aa64mmfr1_el1 = value;
+      return 0;
+    case HV_SYS_REG_ID_AA64MMFR2_EL1:
+      vcpu_data->aa64mmfr2_el1 = value;
+      return 0;
+    default:
+      break;
   }
   // TODO(zhuowei): handle the special cases
   uint64_t offset = 0;
   uint64_t sync_mask = 0;
   bool found = find_sys_reg(sys_reg, &offset, &sync_mask);
   if (!found) {
+    printf("invalid set sys reg: %x\n", sys_reg);
     return HV_BAD_ARGUMENT;
   }
   if (sync_mask) {
     // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC only when needed
     hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
+    vcpu_zone->rw.state_dirty |= sync_mask;
   }
-  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
   *(uint64_t*)((char*)(&vcpu_zone->rw) + offset) = offset;
   return 0;
 }
