@@ -253,11 +253,42 @@ hv_return_t hv_vcpu_set_simd_fp_reg(hv_vcpu_t vcpu, hv_simd_fp_reg_t reg,
 }
 
 static bool find_sys_reg(hv_sys_reg_t sys_reg, uint64_t* offset, uint64_t* sync_mask) {
-  return false;
+  uint64_t o = 0;
+  uint64_t f = 0;
+  switch (sys_reg) {
+#include "sysreg_offsets.h"
+    default:
+      return false;
+  }
+  *offset = o;
+  *sync_mask = f;
+  return true;
 }
 
 static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
               "HV_SYS_REG_DBGBVR0_EL1");
+
+hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t *value) {
+  if (sys_reg >= HV_SYS_REG_ID_AA64ISAR0_EL1 && sys_reg <= HV_SYS_REG_ID_AA64MMFR2_EL1) {
+    printf("TODO(zhuowei): not implemented\n");
+    return HV_BAD_ARGUMENT;
+  }
+  // TODO(zhuowei): handle the special cases
+  uint64_t offset = 0;
+  uint64_t sync_mask = 0;
+  bool found = find_sys_reg(sys_reg, &offset, &sync_mask);
+  if (!found) {
+    return HV_BAD_ARGUMENT;
+  }
+  if (sync_mask) {
+    // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC only when needed
+    hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
+  }
+  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
+  *value = *(uint64_t*)((char*)(&vcpu_zone->rw) + offset);
+  return 0;
+}
+
 
 hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t value) {
   if (sys_reg >= HV_SYS_REG_ID_AA64ISAR0_EL1 && sys_reg <= HV_SYS_REG_ID_AA64MMFR2_EL1) {
@@ -272,7 +303,8 @@ hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t v
     return HV_BAD_ARGUMENT;
   }
   if (sync_mask) {
-    // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC
+    // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC only when needed
+    hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
   }
   struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
   *(uint64_t*)((char*)(&vcpu_zone->rw) + offset) = offset;
