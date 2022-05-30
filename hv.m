@@ -189,7 +189,9 @@ hv_return_t hv_vcpu_destroy(hv_vcpu_t vcpu) {
 hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
   // TODO(zhuowei): update registers
   struct hv_vcpu_data* vcpu_data = &vcpus[0];
+  bool injected_interrupt = false;
   if (vcpu_data->pending_interrupts) {
+    injected_interrupt = true;
     vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= vcpu_data->pending_interrupts;
     vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
   }
@@ -198,8 +200,12 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
     if (err) {
       return err;
     }
-    printf("exit = %d (esr = %x)\n", vcpu_data->vcpu_zone->ro.exit.vmexit_reason,
-           vcpu_data->vcpu_zone->ro.exit.vmexit_esr);
+    bool print_vmexit = false;
+    if (print_vmexit) {
+      printf("exit = %d (esr = %x far = %llx hpfar = %llx)\n",
+             vcpu_data->vcpu_zone->ro.exit.vmexit_reason, vcpu_data->vcpu_zone->ro.exit.vmexit_esr,
+             vcpu_data->vcpu_zone->ro.exit.vmexit_far, vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar);
+    }
     hv_vcpu_exit_t* exit = &vcpu_data->exit;
     switch (vcpu_data->vcpu_zone->ro.exit.vmexit_reason) {
       case 0: {
@@ -218,7 +224,10 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
       }
       case 3:
       case 4: {
+        // if (vcpu_data->vcpu_zone->rw.banked.cntv_ctl_el0 == 5 &&
         exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
+        // mask vtimer
+        vcpu_data->vcpu_zone->rw.controls.timer |= 1ull;
         break;
       }
       case 2:
@@ -230,6 +239,11 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
         exit->reason = HV_EXIT_REASON_UNKNOWN;
         break;
       }
+    }
+    if (injected_interrupt) {
+      vcpu_data->pending_interrupts = 0;
+      vcpu_data->vcpu_zone->rw.controls.hcr_el2 &= ~0xc0ull;
+      vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
     }
     return 0;
   }
@@ -431,7 +445,7 @@ hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t v
     hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
     vcpu_zone->rw.state_dirty |= sync_mask;
   }
-  *(uint64_t*)((char*)(&vcpu_zone->rw) + offset) = offset;
+  *(uint64_t*)((char*)(&vcpu_zone->rw) + offset) = value;
   return 0;
 }
 
