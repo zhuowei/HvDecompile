@@ -72,6 +72,18 @@ hv_return_t hv_vm_map(void* addr, hv_ipa_t ipa, size_t size, hv_memory_flags_t f
   return hv_trap(HV_CALL_VM_MAP, &args);
 }
 
+hv_return_t hv_vm_unmap(hv_ipa_t ipa, size_t size) {
+  struct hv_vm_map_kernel_args args = {
+      .addr = nil, .ipa = ipa, .size = size, .flags = 0, .asid = 0};
+  return hv_trap(HV_CALL_VM_UNMAP, &args);
+}
+
+hv_return_t hv_vm_protect(hv_ipa_t ipa, size_t size, hv_memory_flags_t flags) {
+  struct hv_vm_map_kernel_args args = {
+      .addr = nil, .ipa = ipa, .size = size, .flags = flags, .asid = 0};
+  return hv_trap(HV_CALL_VM_PROTECT, &args);
+}
+
 static pthread_mutex_t vcpus_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct hv_vcpu_zone {
@@ -84,9 +96,10 @@ static_assert(sizeof(struct hv_vcpu_zone) == 0x8000, "hv_vcpu_zone");
 struct hv_vcpu_data {
   struct hv_vcpu_zone* vcpu_zone;  // 0x0
   // TODO(zhuowei)
-  char filler[0xf0 - 0x8];  // 0x8
-  hv_vcpu_exit_t exit;      // 0xf0
-  char filler2[0x8];        // 0x110
+  char filler[0xe8 - 0x8];      // 0x8
+  uint64_t pending_interrupts;  // 0xe8
+  hv_vcpu_exit_t exit;          // 0xf0
+  char filler2[0x8];            // 0x110
 };
 
 static_assert(sizeof(struct hv_vcpu_data) == 0x118, "hv_vcpu_data");
@@ -144,15 +157,59 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
   return 0;
 }
 
+hv_return_t hv_vcpu_destroy(hv_vcpu_t vcpu) {
+  kern_return_t err = hv_trap(HV_CALL_VCPU_DESTROY, nil);
+  if (err) {
+    return err;
+  }
+  pthread_mutex_lock(&vcpus_mutex);
+  struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
+  vcpu_data->vcpu_zone = nil;
+  // TODO(zhuowei): vcpu + 0xe8 = 0???
+  vcpu_data->pending_interrupts = 0;
+  pthread_mutex_unlock(&vcpus_mutex);
+  return 0;
+}
+
 hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
   // TODO(zhuowei): update registers
   struct hv_vcpu_data* vcpu_data = &vcpus[0];
+  if (vcpu_data->pending_interrupts) {
+    vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= vcpu_data->pending_interrupts;
+    vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
+  }
   hv_return_t err = hv_trap(HV_CALL_VCPU_RUN, nil);
   if (err) {
     return err;
   }
   printf("exit = %d (esr = %x)\n", vcpu_data->vcpu_zone->ro.exit.vmexit_reason,
          vcpu_data->vcpu_zone->ro.exit.vmexit_esr);
+  hv_vcpu_exit_t* exit = &vcpu_data->exit;
+  switch (vcpu_data->vcpu_zone->ro.exit.vmexit_reason) {
+    case 0: {
+      exit->reason = HV_EXIT_REASON_CANCELED;
+      break;
+    }
+    case 1:  // hvc call?
+    case 6:  // memory fault?
+    case 8: {
+      exit->reason = HV_EXIT_REASON_EXCEPTION;
+      exit->exception.syndrome = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
+      exit->exception.virtual_address = vcpu_data->vcpu_zone->ro.exit.vmexit_far;
+      exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
+      // TODO(zhuowei): handle registers
+      break;
+    }
+    case 3:
+    case 4: {
+      exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
+      break;
+    }
+    default: {
+      exit->reason = HV_EXIT_REASON_UNKNOWN;
+      break;
+    }
+  }
   return 0;
 }
 
@@ -238,7 +295,7 @@ static bool find_sys_reg(hv_sys_reg_t sys_reg, uint64_t* offset, uint64_t* sync_
 static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
               "HV_SYS_REG_DBGBVR0_EL1");
 
-hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t *value) {
+hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* value) {
   if (sys_reg >= HV_SYS_REG_ID_AA64ISAR0_EL1 && sys_reg <= HV_SYS_REG_ID_AA64MMFR2_EL1) {
     printf("TODO(zhuowei): not implemented\n");
     return HV_BAD_ARGUMENT;
@@ -259,7 +316,6 @@ hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t *
   return 0;
 }
 
-
 hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t value) {
   if (sys_reg >= HV_SYS_REG_ID_AA64ISAR0_EL1 && sys_reg <= HV_SYS_REG_ID_AA64MMFR2_EL1) {
     printf("TODO(zhuowei): not implemented\n");
@@ -279,6 +335,57 @@ hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t v
   struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
   *(uint64_t*)((char*)(&vcpu_zone->rw) + offset) = offset;
   return 0;
+}
+
+hv_return_t hv_vcpu_get_vtimer_mask(hv_vcpu_t vcpu, bool* vtimer_is_masked) {
+  if (!vtimer_is_masked) {
+    return HV_BAD_ARGUMENT;
+  }
+  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
+  *vtimer_is_masked = vcpu_zone->rw.controls.timer & 1;
+  return 0;
+}
+
+hv_return_t hv_vcpu_set_vtimer_mask(hv_vcpu_t vcpu, bool vtimer_is_masked) {
+  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
+  vcpu_zone->rw.controls.timer = (vcpu_zone->rw.controls.timer & ~1ull) | vtimer_is_masked;
+  return 0;
+}
+
+hv_return_t hv_vcpu_get_vtimer_offset(hv_vcpu_t vcpu, uint64_t* vtimer_offset) {
+  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
+  *vtimer_offset = vcpu_zone->rw.controls.virtual_timer_offset;
+  return 0;
+}
+
+hv_return_t hv_vcpu_set_vtimer_offset(hv_vcpu_t vcpu, uint64_t vtimer_offset) {
+  struct hv_vcpu_zone* vcpu_zone = vcpus[vcpu].vcpu_zone;
+  vcpu_zone->rw.controls.virtual_timer_offset = vtimer_offset;
+  vcpu_zone->rw.state_dirty |= 0x4;
+  return 0;
+}
+
+hv_return_t hv_vcpu_set_pending_interrupt(hv_vcpu_t vcpu, hv_interrupt_type_t type, bool pending) {
+  struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
+  if (type == HV_INTERRUPT_TYPE_IRQ) {
+    // HCR_EL2 VI bit
+    if (pending) {
+      vcpu_data->pending_interrupts |= 0x80ull;
+    } else {
+      vcpu_data->pending_interrupts &= ~0x80ull;
+    }
+    return 0;
+  } else if (type == HV_INTERRUPT_TYPE_FIQ) {
+    // HCR_EL2 VF bit
+    if (pending) {
+      vcpu_data->pending_interrupts |= 0x40ull;
+    } else {
+      vcpu_data->pending_interrupts &= ~0x40ull;
+    }
+    return 0;
+  } else {
+    return HV_BAD_ARGUMENT;
+  }
 }
 
 hv_return_t hv_vcpus_exit(hv_vcpu_t* vcpus, uint32_t vcpu_count) {
