@@ -51,11 +51,15 @@ static_assert(sizeof(hv_vcpu_exit_t) == 0x20, "hv_vcpu_exit");
 #define HV_CALL_VM_ADDRESS_SPACE_CREATE 12
 #define HV_CALL_VM_INVALIDATE_TLB 13
 
+#ifdef USE_EXTERNAL_HV_TRAP
+uint64_t hv_trap(unsigned int hv_call, void* hv_arg);
+#else
 __attribute__((naked)) uint64_t hv_trap(unsigned int hv_call, void* hv_arg) {
   asm volatile("mov x16, #-0x5\n"
                "svc 0x80\n"
                "ret\n");
 }
+#endif
 
 // type lookup hv_vm_create_t
 struct hv_vm_create_kernel_args {
@@ -153,9 +157,14 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
   }
   printf("vcpu_zone = %p\n", args.output_vcpu_zone);
   if (args.output_vcpu_zone->ro.ver != kHvVcpuMagic) {
-    hv_trap(HV_CALL_VCPU_DESTROY, nil);
-    pthread_mutex_unlock(&vcpus_mutex);
-    return HV_UNSUPPORTED;
+    printf("Invalid magic! expected %lx, got %lx\n", kHvVcpuMagic, args.output_vcpu_zone->ro.ver);
+    const bool yolo = true;
+    if (!yolo) {
+      hv_trap(HV_CALL_VCPU_DESTROY, nil);
+      pthread_mutex_unlock(&vcpus_mutex);
+      return HV_UNSUPPORTED;
+    }
+    printf("yoloing\n");
   }
   vcpu_data->vcpu_zone = args.output_vcpu_zone;
   *vcpu = cpuid;  // TODO(zhuowei)
@@ -172,7 +181,8 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
   if (err) {
     return err;
   }
-  printf("exit = %d\n", vcpu_data->vcpu_zone->ro.exit.vmexit_reason);
+  printf("exit = %d (esr = %x)\n", vcpu_data->vcpu_zone->ro.exit.vmexit_reason,
+         vcpu_data->vcpu_zone->ro.exit.vmexit_esr);
   return 0;
 }
 
@@ -283,11 +293,11 @@ hv_return_t hv_vcpus_exit(hv_vcpu_t* vcpus, uint32_t vcpu_count) {
 
 int main() {
   hv_return_t err = hv_vm_create(nil);
-  printf("%x\n", err);
+  printf("vm create %x\n", err);
   hv_vcpu_t cpu = 0;
   hv_vcpu_exit_t* exit = nil;
   err = hv_vcpu_create(&cpu, &exit, nil);
-  printf("%x\n", err);
+  printf("vcpu create %x\n", err);
   err = hv_vcpu_run(cpu);
-  printf("%x\n", err);
+  printf("run %x\n", err);
 }
