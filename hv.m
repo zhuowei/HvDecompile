@@ -328,8 +328,8 @@ static bool find_sys_reg(hv_sys_reg_t sys_reg, uint64_t* offset, uint64_t* sync_
   return true;
 }
 
-static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
-              "HV_SYS_REG_DBGBVR0_EL1");
+//static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
+//              "HV_SYS_REG_DBGBVR0_EL1");
 
 hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* value) {
   struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];

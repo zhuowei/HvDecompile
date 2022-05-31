@@ -42,7 +42,9 @@ typedef struct {
   uint64_t cntv_ctl_el0;
   uint64_t cntp_ctl_el0;
   uint64_t cntkctl_el1;
+#ifndef OLDSTRUCT_IOS141
   uint64_t ich_vmcr_el2;
+#endif
 } arm_guest_banked_sysregs_t;
 
 typedef struct {
@@ -53,19 +55,29 @@ typedef struct {
   uint64_t vmpidr_el2;
   uint64_t vpidr_el2;
   uint64_t virtual_timer_offset;
+#ifdef OLDSTRUCT_IOS141
+  uint64_t ich_hcr_el2;
+#endif
   uint64_t hfgrtr_el2;
   uint64_t hfgwtr_el2;
   uint64_t hfgitr_el2;
   uint64_t hdfgrtr_el2;
   uint64_t hdfgwtr_el2;
+#ifndef OLDSTRUCT_IOS141
   uint64_t cnthctl_el2;
+#endif
   uint64_t timer;
   uint64_t vmkeyhi_el2;
   uint64_t vmkeylo_el2;
   uint64_t apsts_el1;
+#ifndef OLDSTRUCT_IOS141
   uint64_t ich_hcr_el2;
   uint64_t ich_lr_el2[8];
+#endif
   uint64_t host_debug;
+#ifdef OLDSTRUCT_IOS141
+  uint64_t state_used;
+#endif
 } arm_guest_controls_t;
 
 typedef struct {
