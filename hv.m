@@ -165,7 +165,7 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
     printf("yoloing\n");
   }
   vcpu_data->vcpu_zone = args.output_vcpu_zone;
-  *vcpu = cpuid;  // TODO(zhuowei)
+  *vcpu = cpuid;
   *exit = &vcpu_data->exit;
   pthread_mutex_unlock(&vcpus_mutex);
   // TODO(zhuowei): configure regs
@@ -188,7 +188,7 @@ hv_return_t hv_vcpu_destroy(hv_vcpu_t vcpu) {
 
 hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
   // TODO(zhuowei): update registers
-  struct hv_vcpu_data* vcpu_data = &vcpus[0];
+  struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
   bool injected_interrupt = false;
   if (vcpu_data->pending_interrupts) {
     injected_interrupt = true;
