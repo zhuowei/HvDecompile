@@ -6,6 +6,9 @@ typedef io_object_t io_connect_t;
 kern_return_t IOConnectTrap6(io_connect_t connect, uint32_t index, uintptr_t p1, uintptr_t p2,
                              uintptr_t p3, uintptr_t p4, uintptr_t p5, uintptr_t p6);
 
+extern mach_port_t bootstrap_port;
+kern_return_t bootstrap_look_up(mach_port_t bp, const char* service_name, mach_port_t* sp);
+
 static mach_port_t gUserClient;
 static uint64_t gCodePtrs[14];
 static uint64_t gDiscriminant;
@@ -21,15 +24,20 @@ static int init_hv_trap() {
   }
   NSArray<NSString*>* parts = [inStr componentsSeparatedByString:@"\n"];
   int target_pid = parts[0].intValue;
+
   mach_port_t target_task = 0;
   kern_return_t err;
-  err = task_for_pid(mach_task_self_, target_pid, &target_task);
+  err = bootstrap_look_up(bootstrap_port, "com.worthdoingbadly.hypervisor", &target_task);
   if (err) {
-    fprintf(stderr, "Failed to get task port: %s\n", mach_error_string(err));
-    return 1;
+    NSLog(@"Can't lookup bootstrap: %d; trying task_for_pid\n", err);
+    err = task_for_pid(mach_task_self_, target_pid, &target_task);
+    if (err) {
+      NSLog(@"Failed to get task port: %s\n", mach_error_string(err));
+      return 1;
+    }
   }
   if (target_task == MACH_PORT_NULL) {
-    fprintf(stderr, "Can't get task port for pid %d\n", target_pid);
+    NSLog(@"Can't get task port for pid %d\n", target_pid);
     return 1;
   }
   mach_port_name_t remote_port_id = parts[1].intValue;
@@ -38,7 +46,7 @@ static int init_hv_trap() {
   err = mach_port_extract_right(target_task, remote_port_id, MACH_MSG_TYPE_COPY_SEND, &user_client,
                                 &user_client_type);
   if (err) {
-    fprintf(stderr, "Failed to extract user client port: %s\n", mach_error_string(err));
+    NSLog(@"Failed to extract user client port: %s\n", mach_error_string(err));
     return 1;
   }
   NSLog(@"ok port = %u", user_client);
