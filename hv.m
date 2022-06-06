@@ -1,5 +1,6 @@
 // Decompiled by hand (based-ish on a Ghidra decompile) from Hypervisor.framework on macOS 12.0b1
 @import Darwin;
+@import Dispatch;
 #include <Hypervisor/Hypervisor.h>
 #include <assert.h>
 #include "hv_kernel_structs.h"
@@ -37,6 +38,50 @@ static uint64_t hv_trap_wrap(unsigned int hv_call, void* hv_arg) {
   return err;
 }
 //#define hv_trap hv_trap_wrap
+
+static hv_return_t _hv_get_capabilities(hv_capabilities_t** c) {
+  static dispatch_once_t caps_once;
+  static hv_capabilities_t caps;
+  static hv_return_t status;
+  dispatch_once(&caps_once, ^{
+    status = hv_trap(HV_CALL_VM_GET_CAPABILITIES, &caps);
+  });
+  *c = &caps;
+  return status;
+}
+
+// this is placed at offset 8 of the cpu regs, so I'm labelling the offsets relative to those
+struct hv_vcpu_data_feature_regs {
+  uint64_t aa64dfr0_el1;   // 0x8
+  uint64_t aa64dfr1_el1;   // 0x10
+  uint64_t aa64isar0_el1;  // 0x18
+  uint64_t aa64isar1_el1;  // 0x20
+  uint64_t aa64mmfr0_el1;  // 0x28
+  uint64_t aa64mmfr1_el1;  // 0x30
+  uint64_t aa64mmfr2_el1;  // 0x38
+  uint64_t aa64pfr0_el1;   // 0x40
+  uint64_t aa64pfr1_el1;   // 0x48
+};
+
+static hv_return_t _hv_vcpu_config_get_feature_regs(
+    struct hv_vcpu_data_feature_regs* feature_regs) {
+  hv_capabilities_t* caps = nil;
+  hv_return_t err = _hv_get_capabilities(&caps);
+  if (err) {
+    return err;
+  }
+  // TODO(zhuowei): they do a bunch of fancy shifting to flip a few bits; we just copy over
+  feature_regs->aa64dfr0_el1 = caps->id_aa64dfr0_el1;
+  feature_regs->aa64dfr1_el1 = caps->id_aa64dfr1_el1;
+  feature_regs->aa64isar0_el1 = caps->id_aa64isar0_el1;
+  feature_regs->aa64isar1_el1 = caps->id_aa64isar1_el1;
+  feature_regs->aa64mmfr0_el1 = caps->id_aa64mmfr0_el1;
+  feature_regs->aa64mmfr1_el1 = caps->id_aa64mmfr1_el1;
+  feature_regs->aa64mmfr2_el1 = caps->id_aa64mmfr2_el1;
+  feature_regs->aa64pfr0_el1 = caps->id_aa64pfr0_el1;
+  feature_regs->aa64pfr1_el1 = caps->id_aa64pfr1_el1;
+  return 0;
+}
 
 // type lookup hv_vm_create_t
 struct hv_vm_create_kernel_args {
@@ -101,20 +146,12 @@ struct hv_vcpu_zone {
 static_assert(sizeof(struct hv_vcpu_zone) == 0x8000, "hv_vcpu_zone");
 
 struct hv_vcpu_data {
-  struct hv_vcpu_zone* vcpu_zone;  // 0x0
-  uint64_t aa64dfr0_el1;           // 0x8
-  uint64_t aa64dfr1_el1;           // 0x10
-  uint64_t aa64isar0_el1;          // 0x18
-  uint64_t aa64isar1_el1;          // 0x20
-  uint64_t aa64mmfr0_el1;          // 0x28
-  uint64_t aa64mmfr1_el1;          // 0x30
-  uint64_t aa64mmfr2_el1;          // 0x38
-  uint64_t aa64pfr0_el1;           // 0x40
-  uint64_t aa64pfr1_el1;           // 0x48
-  char filler[0xe8 - 0x50];        // 0x50
-  uint64_t pending_interrupts;     // 0xe8
-  hv_vcpu_exit_t exit;             // 0xf0
-  char filler2[0x8];               // 0x110
+  struct hv_vcpu_zone* vcpu_zone;                 // 0x0
+  struct hv_vcpu_data_feature_regs feature_regs;  // 0x8
+  char filler[0xe8 - 0x50];                       // 0x50
+  uint64_t pending_interrupts;                    // 0xe8
+  hv_vcpu_exit_t exit;                            // 0xf0
+  char filler2[0x8];                              // 0x110
 };
 
 static_assert(sizeof(struct hv_vcpu_data) == 0x118, "hv_vcpu_data");
@@ -168,7 +205,22 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
   *vcpu = cpuid;
   *exit = &vcpu_data->exit;
   pthread_mutex_unlock(&vcpus_mutex);
-  // TODO(zhuowei): configure regs
+  // TODO(zhuowei): configure regs from HV_CALL_VM_GET_CAPABILITIES
+  err = _hv_vcpu_config_get_feature_regs(&vcpu_data->feature_regs);
+  if (err) {
+    hv_vcpu_destroy(cpuid);
+    return err;
+  }
+  // TODO(zhuowei): set vmkeyhi_el2/vmkeylo_el2
+
+  // Apple traps PMCCNTR_EL0 using this proprietary register, then translates the syndrome.
+  // No, I don't know why Apple doesn't just use HDFGRTR_EL2 or MDCR_EL2
+  vcpu_data->vcpu_zone->rw.controls.hacr_el2 |= 1ull << 56;
+  // TID3: trap the feature regs so we can handle these ourselves
+  // TODO(zhuowei): or not... we don't handle these yet!
+  // vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= 0x40000ull;
+  // TODO(zhuowei): if ro hacr has a bit set, clear rw hcr_el2 TIDCP?!
+  vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
   return 0;
 }
 
@@ -220,6 +272,11 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
         exit->exception.virtual_address = vcpu_data->vcpu_zone->ro.exit.vmexit_far;
         exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
         // TODO(zhuowei): handle registers
+        // TODO(zhuowei): this is just one case in that massive switch statement!
+        if ((exit->exception.syndrome >> 26) == 0b111111) {
+          exit->exception.syndrome =
+              0x62000000 | (vcpu_data->vcpu_zone->ro.exit.vmexit_instr & 0x1ffffff);
+        }
         break;
       }
       case 3:
@@ -328,7 +385,7 @@ static bool find_sys_reg(hv_sys_reg_t sys_reg, uint64_t* offset, uint64_t* sync_
   return true;
 }
 
-//static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
+// static_assert(offsetof(arm_guest_rw_context_t, dbgregs.bp[0].bvr) == 0x450,
 //              "HV_SYS_REG_DBGBVR0_EL1");
 
 hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* value) {
@@ -342,31 +399,31 @@ hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* 
       *value = vcpu_zone->rw.controls.vmpidr_el2;
       return 0;
     case HV_SYS_REG_ID_AA64PFR0_EL1:
-      *value = vcpu_data->aa64pfr0_el1;
+      *value = vcpu_data->feature_regs.aa64pfr0_el1;
       return 0;
     case HV_SYS_REG_ID_AA64PFR1_EL1:
-      *value = vcpu_data->aa64pfr1_el1;
+      *value = vcpu_data->feature_regs.aa64pfr1_el1;
       return 0;
     case HV_SYS_REG_ID_AA64DFR0_EL1:
-      *value = vcpu_data->aa64dfr0_el1;
+      *value = vcpu_data->feature_regs.aa64dfr0_el1;
       return 0;
     case HV_SYS_REG_ID_AA64DFR1_EL1:
-      *value = vcpu_data->aa64dfr1_el1;
+      *value = vcpu_data->feature_regs.aa64dfr1_el1;
       return 0;
     case HV_SYS_REG_ID_AA64ISAR0_EL1:
-      *value = vcpu_data->aa64isar0_el1;
+      *value = vcpu_data->feature_regs.aa64isar0_el1;
       return 0;
     case HV_SYS_REG_ID_AA64ISAR1_EL1:
-      *value = vcpu_data->aa64isar1_el1;
+      *value = vcpu_data->feature_regs.aa64isar1_el1;
       return 0;
     case HV_SYS_REG_ID_AA64MMFR0_EL1:
-      *value = vcpu_data->aa64mmfr0_el1;
+      *value = vcpu_data->feature_regs.aa64mmfr0_el1;
       return 0;
     case HV_SYS_REG_ID_AA64MMFR1_EL1:
-      *value = vcpu_data->aa64mmfr1_el1;
+      *value = vcpu_data->feature_regs.aa64mmfr1_el1;
       return 0;
     case HV_SYS_REG_ID_AA64MMFR2_EL1:
-      *value = vcpu_data->aa64mmfr2_el1;
+      *value = vcpu_data->feature_regs.aa64mmfr2_el1;
       return 0;
     default:
       break;
@@ -403,31 +460,31 @@ hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t v
     }
       // the kernel doesn't set these - userspace traps and handles these
     case HV_SYS_REG_ID_AA64PFR0_EL1:
-      vcpu_data->aa64pfr0_el1 = value;
+      vcpu_data->feature_regs.aa64pfr0_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64PFR1_EL1:
-      vcpu_data->aa64pfr1_el1 = value;
+      vcpu_data->feature_regs.aa64pfr1_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64DFR0_EL1:
-      vcpu_data->aa64dfr0_el1 = value;
+      vcpu_data->feature_regs.aa64dfr0_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64DFR1_EL1:
-      vcpu_data->aa64dfr1_el1 = value;
+      vcpu_data->feature_regs.aa64dfr1_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64ISAR0_EL1:
-      vcpu_data->aa64isar0_el1 = value;
+      vcpu_data->feature_regs.aa64isar0_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64ISAR1_EL1:
-      vcpu_data->aa64isar1_el1 = value;
+      vcpu_data->feature_regs.aa64isar1_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64MMFR0_EL1:
-      vcpu_data->aa64mmfr0_el1 = value;
+      vcpu_data->feature_regs.aa64mmfr0_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64MMFR1_EL1:
-      vcpu_data->aa64mmfr1_el1 = value;
+      vcpu_data->feature_regs.aa64mmfr1_el1 = value;
       return 0;
     case HV_SYS_REG_ID_AA64MMFR2_EL1:
-      vcpu_data->aa64mmfr2_el1 = value;
+      vcpu_data->feature_regs.aa64mmfr2_el1 = value;
       return 0;
     default:
       break;
