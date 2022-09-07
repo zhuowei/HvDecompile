@@ -285,8 +285,11 @@ hv_return_t hv_vcpu_destroy(hv_vcpu_t vcpu) {
   return 0;
 }
 
+static bool deliver_ordinary_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t* exit);
+static void deliver_uncategorized_exception(struct hv_vcpu_data* vcpu_data);
+
 hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
-  // TODO(zhuowei): update registers
+  // update registers
   struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
   bool injected_interrupt = false;
   if (vcpu_data->pending_interrupts) {
@@ -294,6 +297,7 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
     vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= vcpu_data->pending_interrupts;
     vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
   }
+  vcpu_data->timer_enabled = vcpu_data->vcpu_zone->rw.controls.timer & 1;
   while (true) {
     hv_return_t err = hv_trap(HV_CALL_VCPU_RUN, nil);
     if (err) {
@@ -328,10 +332,13 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
       }
       case 3:
       case 4: {
-        // if (vcpu_data->vcpu_zone->rw.banked.cntv_ctl_el0 == 5 &&
-        exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
-        // mask vtimer
-        vcpu_data->vcpu_zone->rw.controls.timer |= 1ull;
+        if (vcpu_data->timer_enabled && vcpu_data->vcpu_zone->rw.banked_sysregs.cntv_ctl_el0 == 5) {
+          exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
+          // mask vtimer
+          vcpu_data->vcpu_zone->rw.controls.timer |= 1ull;
+        } else {
+          exit->reason = HV_EXIT_REASON_UNKNOWN;
+        }
         break;
       }
       case 2:
