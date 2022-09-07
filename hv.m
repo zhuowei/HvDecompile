@@ -69,6 +69,20 @@ struct hv_vcpu_data_feature_regs {
   uint64_t ccsidr_el1_data_or_unified[8]; // 0xA8
 };
 
+// TODO: define names for the flags from aarch64 documents
+#define MODIFY_FLAGS_AA64DFR0_EL1(reg) ((reg) & 0xf0f0f000 | 6)
+#define MODIFY_FLAGS_AA64DFR1_EL1(reg) ((reg) & 0)
+#define MODIFY_FLAGS_AA64ISAR0_EL1(reg) ((reg) & 0xfffffffff0fffff0)
+#define MODIFY_FLAGS_AA64ISAR1_EL1(reg) ((reg) & 0xfffffffffff)
+#define MODIFY_FLAGS_AA64MMFR0_EL1(reg) ((reg) & 0xf000fff000f0 | 1)
+#define MODIFY_FLAGS_AA64MMFR1_EL1(reg) ((reg) & 0xfffff0f0)
+#define MODIFY_FLAGS_AA64MMFR2_EL1(reg) ((reg) & 0xf000000000000000 | (((((reg) >> 48) & 0xff) << 48) | ((((reg) >> 32) & 0xff) << 32) | (((reg) & 0xff0ff))))
+#define MODIFY_FLAGS_AA64PFR0_EL1(reg) ((reg) & 0xff0f0000f0ff00ff | 0x1100)
+#define MODIFY_FLAGS_AA64PFR1_EL1(reg) ((reg) & 0xf0)
+#define MODIFY_FLAGS_CTR_EL0(reg) (reg)
+#define MODIFY_FLAGS_DCZID_EL0(reg) (reg)
+#define MODIFY_FLAGS_CLIDR_EL1(reg) (reg)
+
 static hv_return_t _hv_vcpu_config_get_feature_regs(
     struct hv_vcpu_data_feature_regs* feature_regs) {
   hv_capabilities_t* caps = nil;
@@ -76,19 +90,18 @@ static hv_return_t _hv_vcpu_config_get_feature_regs(
   if (err) {
     return err;
   }
-  // TODO(zhuowei): they do a bunch of fancy shifting to flip a few bits; we just copy over
-  feature_regs->aa64dfr0_el1 = caps->id_aa64dfr0_el1;
-  feature_regs->aa64dfr1_el1 = caps->id_aa64dfr1_el1;
-  feature_regs->aa64isar0_el1 = caps->id_aa64isar0_el1;
-  feature_regs->aa64isar1_el1 = caps->id_aa64isar1_el1;
-  feature_regs->aa64mmfr0_el1 = caps->id_aa64mmfr0_el1;
-  feature_regs->aa64mmfr1_el1 = caps->id_aa64mmfr1_el1;
-  feature_regs->aa64mmfr2_el1 = caps->id_aa64mmfr2_el1;
-  feature_regs->aa64pfr0_el1 = caps->id_aa64pfr0_el1;
-  feature_regs->aa64pfr1_el1 = caps->id_aa64pfr1_el1;
-  feature_regs->ctr_el0 = caps->ctr_el0;
-  feature_regs->dczid_el0 = caps->dczid_el0;
-  feature_regs->clidr_el1 = caps->clidr_el1;
+  feature_regs->aa64dfr0_el1 = MODIFY_FLAGS_AA64DFR0_EL1(caps->id_aa64dfr0_el1);
+  feature_regs->aa64dfr1_el1 = MODIFY_FLAGS_AA64DFR1_EL1(caps->id_aa64dfr1_el1);
+  feature_regs->aa64isar0_el1 = MODIFY_FLAGS_AA64ISAR0_EL1(caps->id_aa64isar0_el1);
+  feature_regs->aa64isar1_el1 = MODIFY_FLAGS_AA64ISAR1_EL1(caps->id_aa64isar1_el1);
+  feature_regs->aa64mmfr0_el1 = MODIFY_FLAGS_AA64MMFR0_EL1(caps->id_aa64mmfr0_el1);
+  feature_regs->aa64mmfr1_el1 = MODIFY_FLAGS_AA64MMFR1_EL1(caps->id_aa64mmfr1_el1);
+  feature_regs->aa64mmfr2_el1 = MODIFY_FLAGS_AA64MMFR2_EL1(caps->id_aa64mmfr2_el1);
+  feature_regs->aa64pfr0_el1 = MODIFY_FLAGS_AA64PFR0_EL1(caps->id_aa64pfr0_el1);
+  feature_regs->aa64pfr1_el1 = MODIFY_FLAGS_AA64PFR1_EL1(caps->id_aa64pfr1_el1);
+  feature_regs->ctr_el0 = MODIFY_FLAGS_CTR_EL0(caps->ctr_el0);
+  feature_regs->dczid_el0 = MODIFY_FLAGS_DCZID_EL0(caps->dczid_el0);
+  feature_regs->clidr_el1 = MODIFY_FLAGS_CLIDR_EL1(caps->clidr_el1);
   static_assert(sizeof(feature_regs->ccsidr_el1_inst) == sizeof(caps->ccsidr_el1_inst), "ccsidr_el1_inst size");
   memcpy(feature_regs->ccsidr_el1_inst, caps->ccsidr_el1_inst, sizeof(feature_regs->ccsidr_el1_inst));
   static_assert(sizeof(feature_regs->ccsidr_el1_data_or_unified) == sizeof(caps->ccsidr_el1_data_or_unified), "ccsidr_el1_data_or_unified size");
