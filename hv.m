@@ -318,15 +318,8 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
       case 1:  // hvc call?
       case 6:  // memory fault?
       case 8: {
-        exit->reason = HV_EXIT_REASON_EXCEPTION;
-        exit->exception.syndrome = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
-        exit->exception.virtual_address = vcpu_data->vcpu_zone->ro.exit.vmexit_far;
-        exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
-        // TODO(zhuowei): handle registers
-        // TODO(zhuowei): this is just one case in that massive switch statement!
-        if ((exit->exception.syndrome >> 26) == 0b111111) {
-          exit->exception.syndrome =
-              0x62000000 | (vcpu_data->vcpu_zone->ro.exit.vmexit_instr & 0x1ffffff);
+        if (deliver_ordinary_exception(vcpu_data, exit)) {
+          continue;
         }
         break;
       }
@@ -346,6 +339,9 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
         // keep going!
         continue;
       }
+      case 7:
+        deliver_uncategorized_exception(vcpu_data);
+        continue;
       default: {
         exit->reason = HV_EXIT_REASON_UNKNOWN;
         break;
@@ -621,4 +617,338 @@ hv_return_t hv_vcpus_exit(hv_vcpu_t* vcpus, uint32_t vcpu_count) {
     mask |= (1ul << cpu);
   }
   return hv_trap(HV_CALL_VCPU_RUN_CANCEL, (void*)mask);
+}
+
+void sync_and_dirty_banked_state(struct hv_vcpu_zone *vcpu_zone, uint64_t state)
+{
+  if (((vcpu_zone->ro.state_valid & state) == 0) && hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0) != 0) {
+    assert(false);
+  }
+  vcpu_zone->rw.state_dirty = vcpu_zone->rw.state_dirty | state;
+  return;
+}
+
+static bool deliver_msr_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t* exit) {
+  uint64_t esr = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
+  uint32_t reg = (esr >> 5) & 0x1f;
+  struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
+  if ((esr & 0x300000) == 0x200000) {
+    if ((vcpu_zone->rw.controls.mdcr_el2 >> 9 & 1) != 0) {
+      return false;
+    }
+    uint32_t uVar6 = esr & 0x3ffc1e;
+    if ((esr & 1) == 0) {
+      if (uVar6 < 0x20c00a) {
+        if (uVar6 == 0x200004) {
+          vcpu_zone->rw.dbgregs.mdccint_el1 = vcpu_zone->rw.regs.x[reg];
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        }
+        if (uVar6 != 0x20c008) {
+          return false;
+        }
+      } else if (uVar6 != 0x20c00a) {
+        if (uVar6 == 0x240000) {
+          vcpu_zone->rw.dbgregs.osdtrrx_el1 = vcpu_zone->rw.regs.x[reg];
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        }
+        if (uVar6 != 0x240006) {
+          return false;
+        }
+      }
+      vcpu_zone->rw.dbgregs.osdtrtx_el1 = vcpu_zone->rw.regs.x[reg];
+      vcpu_zone->rw.regs.pc += 4;
+      return true;
+    }
+
+    if (uVar6 < 0x20c00a) {
+      if (uVar6 == 0x200004) {
+        vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.mdccint_el1;
+        vcpu_zone->rw.regs.pc += 4;
+        return true;
+      } else {
+        if (uVar6 != 0x20c002) {
+          if (uVar6 != 0x20c008) {
+            return false;
+          }
+          vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrrx_el1;
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        }
+        vcpu_zone->rw.regs.x[reg] = 0;
+        vcpu_zone->rw.regs.pc += 4;
+        return true;
+      }
+    } else if ((uVar6 == 0x20c00a) || (uVar6 == 0x240000)) {
+      vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrrx_el1;
+      vcpu_zone->rw.regs.pc += 4;
+      return true;
+    } else {
+      if (uVar6 != 0x240006) {
+        return false;
+      }
+      vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrtx_el1;
+      vcpu_zone->rw.regs.pc += 4;
+      return true;
+    }
+  } else { // 230
+    if ((esr & 1) == 0) {
+      return false;
+    }
+    uint32_t uVar6 = esr & 0x3ffc1e;
+    if (0x340003 < uVar6) {
+      if (uVar6 < 0x3a0002) {
+        if (uVar6 < 0x360002) {
+          if ((uVar6 != 0x340004) && (uVar6 != 0x340006)) {
+            if (uVar6 != 0x34000e) {
+              return false;
+            }
+            vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr2_el1;
+            vcpu_zone->rw.regs.pc += 4;
+            return true;
+          }
+        } else if (uVar6 - 0x380002 < 9) {
+          if (uVar6 == 0x380006) {
+            return false;
+          }
+          vcpu_zone->rw.regs.x[reg] = 0;
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        } else if (uVar6 != 0x360002) {
+          if (uVar6 != 0x360004) {
+            return false;
+          }
+          vcpu_zone->rw.regs.x[reg] = 0;
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        }
+      } else if (uVar6 < 0x3c0002) {
+        if ((uVar6 != 0x3a0002) && (uVar6 != 0x3a0004)) {
+          if (uVar6 != 0x3a000a) {
+            return false;
+          }
+          vcpu_zone->rw.regs.x[reg] = 0;
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        } else {
+          vcpu_zone->rw.regs.x[reg] = 0;
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        }
+      } else if ((uVar6 != 0x3c0002) && (uVar6 != 0x3c0004)) {
+        if (uVar6 != 0x3e0002) {
+          return false;
+        } else {
+          vcpu_zone->rw.regs.x[reg] = 0;
+          vcpu_zone->rw.regs.pc += 4;
+          return true;
+        }
+      }
+
+      vcpu_zone->rw.regs.x[reg] = 0;
+      vcpu_zone->rw.regs.pc += 4;
+      return true;
+    }
+
+    if (uVar6 - 0x300002 < 0xd) {
+      switch(uVar6) {
+      default:
+        vcpu_zone->rw.regs.x[reg] = 0;
+        break;
+      case 0x300008:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64pfr0_el1;
+        break;
+      case 0x30000a:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64dfr0_el1;
+        break;
+      case 0x30000c:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64isar0_el1;
+        break;
+      case 0x30000e:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr0_el1;
+        break;
+      }
+    } else {
+      if (0xc < uVar6 - 0x320002) {
+        if (uVar6 != 0x340002) {
+          return false;
+        }
+        vcpu_zone->rw.regs.x[reg] = 0;
+        vcpu_zone->rw.regs.pc += 4;
+        return true;
+      }
+      switch(uVar6) {
+      default:
+        vcpu_zone->rw.regs.x[reg] = 0;
+        break;
+      case 0x320008:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64pfr1_el1;
+        break;
+      case 0x32000a:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64dfr1_el1;
+        break;
+      case 0x32000c:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64isar1_el1;
+        break;
+      case 0x32000e:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr1_el1;
+        break;
+      }
+    }
+    vcpu_zone->rw.regs.pc += 4;
+    return true;
+  }
+}
+
+static bool deliver_pac_exception(struct hv_vcpu_data* vcpu_data) {
+  uint64_t esr = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
+  struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
+  uint32_t uVar6;
+  uint64_t uVar9;
+
+  if (((esr & 0xffff) != 0) ||
+     ((vcpu_zone->rw.regs.x[0] & 0xff000000) != 0xc1000000)) {
+    return false;
+  }
+  uVar6 = vcpu_zone->rw.regs.x[0] & 0xffffff;
+  if (((vcpu_zone->ro.controls.hacr_el2 >> 4 & 1) == 0) ||
+     (6 < uVar6)) {
+    vcpu_zone->rw.regs.x[0] = 0xffffffff;
+    return true;
+  }
+  switch(uVar6) {
+  default:
+    vcpu_zone->rw.extregs.apctl_el1 = 0x11;
+    sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
+    vcpu_zone->rw.extregs.apiakeylo_el1 = 0xfeedfacefeedfacf;
+    vcpu_zone->rw.extregs.apiakeyhi_el1 = 0xfeedfacefeedfad0;
+    vcpu_zone->rw.extregs.apdakeylo_el1 = 0xfeedfacefeedfad1;
+    vcpu_zone->rw.extregs.apdakeyhi_el1 = 0xfeedfacefeedfad2;
+    sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
+    vcpu_zone->rw.extregs.apibkeylo_el1 = 0xfeedfacefeedfad5;
+    vcpu_zone->rw.extregs.apibkeyhi_el1 = 0xfeedfacefeedfad6;
+    vcpu_zone->rw.extregs.apdbkeylo_el1 = 0xfeedfacefeedfad7;
+    vcpu_zone->rw.extregs.apdbkeyhi_el1 = 0xfeedfacefeedfad8;
+    sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
+    vcpu_zone->rw.extregs.apgakeylo_el1 = 0xfeedfacefeedfad9;
+    vcpu_zone->rw.extregs.apgakeyhi_el1 = 0xfeedfacefeedfada;
+    sync_and_dirty_banked_state(vcpu_zone, 0x1000000000000000);
+    vcpu_zone->rw.extregs.kernkeylo_el1 = 0xfeedfacefeedfad3;
+    vcpu_zone->rw.extregs.kernkeyhi_el1 = 0xfeedfacefeedfad4;
+    break;
+  case 1:
+    vcpu_zone->rw.regs.x[1] = 0xfeedfacefeedfacf;
+    vcpu_zone->rw.regs.x[0] = 0;
+    vcpu_zone->rw.regs.x[3] = 0xfeedfacefeedfad3;
+    vcpu_zone->rw.regs.x[2] = 0xfeedfacefeedfad5;
+    vcpu_zone->rw.regs.x[4] = 0xfeedfacefeedfad9;
+    return true;
+  case 2:
+    uVar9 = vcpu_zone->rw.regs.x[1];
+    sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
+    vcpu_zone->rw.extregs.apiakeylo_el1 = uVar9;
+    vcpu_zone->rw.extregs.apiakeyhi_el1 = uVar9 + 1;
+    vcpu_zone->rw.extregs.apdakeylo_el1 = uVar9 + 2;
+    vcpu_zone->rw.extregs.apdakeyhi_el1 = uVar9 + 3;
+    break;
+  case 3:
+    uVar9 = vcpu_zone->rw.regs.x[1];
+    sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
+    vcpu_zone->rw.extregs.apibkeylo_el1 = uVar9;
+    vcpu_zone->rw.extregs.apibkeyhi_el1 = uVar9 + 1;
+    vcpu_zone->rw.extregs.apdbkeylo_el1 = uVar9 + 2;
+    vcpu_zone->rw.extregs.apdbkeyhi_el1 = uVar9 + 3;
+    break;
+  case 4:
+    uVar9 = vcpu_zone->rw.regs.x[1];
+    sync_and_dirty_banked_state(vcpu_zone, 0x1000000000000000);
+    vcpu_zone->rw.extregs.kernkeylo_el1 = uVar9;
+    vcpu_zone->rw.extregs.kernkeyhi_el1 = uVar9 + 1;
+    break;
+  case 5:
+    uVar9 = vcpu_zone->rw.regs.x[2];
+    sync_and_dirty_banked_state(vcpu_zone, 0x1000000000000000);
+    vcpu_zone->rw.extregs.kernkeylo_el1 = uVar9;
+    vcpu_zone->rw.extregs.kernkeyhi_el1 = uVar9 + 1;
+    uVar9 = vcpu_zone->rw.regs.x[1];
+    if (uVar9 == 0) {
+      vcpu_zone->rw.extregs.apctl_el1 = vcpu_zone->rw.extregs.apctl_el1 & 0xfffffffffffffffd;
+    }
+    else if (uVar9 == 1) {
+      vcpu_zone->rw.extregs.apctl_el1 = vcpu_zone->rw.extregs.apctl_el1 | 2;
+    }
+    break;
+  case 6:
+    uVar9 = vcpu_zone->rw.regs.x[1];
+    sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
+    vcpu_zone->rw.extregs.apgakeylo_el1 = uVar9;
+    vcpu_zone->rw.extregs.apgakeyhi_el1 = uVar9 + 1;
+    break;
+  }
+  vcpu_zone->rw.regs.x[0] = 0;
+  return true;
+}
+
+static bool deliver_ordinary_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t* exit) {
+  uint64_t esr = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
+  struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
+
+  exit->reason = HV_EXIT_REASON_EXCEPTION;
+  exit->exception.syndrome = esr;
+  exit->exception.virtual_address = vcpu_data->vcpu_zone->ro.exit.vmexit_far;
+  exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
+  
+  if ((esr >> 26) == 0x16) {
+    return deliver_pac_exception(vcpu_data);
+  } else if ((esr >> 26) == 0x3f) {
+    if (vcpu_zone->ro.exit.vmexit_reason != 8) {
+      deliver_uncategorized_exception(vcpu_data);
+      return true;
+    }
+    uint64_t exit_instr = vcpu_zone->ro.exit.vmexit_instr;
+    if (((exit_instr ^ 0xffffffff) & 0x302c00) == 0) {
+      if ((vcpu_zone->ro.controls.hacr_el2 >> 4 & 1) != 0) {
+        deliver_uncategorized_exception(vcpu_data);
+        return true;
+      }
+    } else if ((exit_instr & 0x1ff0000) == 0x1c00000) {
+      exit->exception.syndrome = exit_instr & 0xffff | 0x5e000000;
+    } else {
+      if (((exit_instr & 0x3ffc1e) == 0x3e4000) &&
+         ((vcpu_zone->ro.controls.hacr_el2 >> 4 & 1) != 0)) {
+        vcpu_zone->rw.regs.x[((exit_instr >> 5) & 0x1f)] = 0x980200;
+        vcpu_zone->rw.regs.pc += 4;
+        return true;
+      }
+      exit->exception.syndrome = exit_instr & 0x1ffffff | 0x62000000;
+    }
+    return false;
+  } else if ((esr >> 26) == 0x18) {
+    return deliver_msr_exception(vcpu_data, exit);
+  }
+  return false;
+}
+
+static void deliver_uncategorized_exception(struct hv_vcpu_data* vcpu_data) {
+  struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
+  uint64_t cpsr, vbar_el1, pc;
+
+  sync_and_dirty_banked_state(vcpu_zone, 1);
+  vcpu_zone->rw.banked_sysregs.elr_el1 = vcpu_zone->rw.regs.pc;
+  vcpu_zone->rw.banked_sysregs.esr_el1 = 0x2000000;
+  vcpu_zone->rw.banked_sysregs.spsr_el1 = vcpu_zone->rw.regs.cpsr;
+  cpsr = vcpu_zone->rw.regs.cpsr;
+  assert((cpsr >> 4 & 1) == 0); // (m & SPSR_MODE_RW_32) == 0
+  vbar_el1 = vcpu_zone->rw.banked_sysregs.vbar_el1;
+  pc = vbar_el1;
+  if ((cpsr & 1) != 0) {
+    pc = vbar_el1 + 0x200;
+  }
+  if ((cpsr & 0x1f) < 4) {
+    pc = vbar_el1 + 0x400;
+  }
+  vcpu_zone->rw.regs.pc = pc;
+  vcpu_zone->rw.regs.cpsr = vcpu_zone->rw.regs.cpsr & 0xffffffe0;
+  vcpu_zone->rw.regs.cpsr = vcpu_zone->rw.regs.cpsr | 0x3c5;
 }
