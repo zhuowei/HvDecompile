@@ -127,10 +127,22 @@ const struct hv_vm_create_kernel_args kDefaultVmCreateKernelArgs = {
     .isa = 1,
 };
 
+struct hv_vm_config_private {
+  char field_0[16];
+  uint64_t min_ipa;
+  uint64_t ipa_size;
+  uint32_t granule;
+  uint32_t isa;
+};
+
 hv_return_t hv_vm_create(hv_vm_config_t config) {
   struct hv_vm_create_kernel_args args = kDefaultVmCreateKernelArgs;
+  struct hv_vm_config_private *_config = (struct hv_vm_config_private *)config;
   if (config) {
-    // TODO(zhuowei): figure this out?
+    args.min_ipa = _config->min_ipa;
+    args.ipa_size = _config->ipa_size;
+    args.granule = _config->granule;
+    args.isa = _config->isa;
   }
   return hv_trap(HV_CALL_VM_CREATE, &args);
 }
