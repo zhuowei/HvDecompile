@@ -205,7 +205,14 @@ struct hv_vcpu_create_kernel_args {
 // ' hyp', 0xe
 static const uint64_t kHvVcpuMagic = 0x206879700000000eull;
 
+struct hv_vcpu_config_private {
+  char field_0[16];
+  uint64_t vmkeylo_el2;
+  uint64_t vmkeyhi_el2;
+};
+
 hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_config_t config) {
+  struct hv_vcpu_config_private *_config = (struct hv_vcpu_config_private *)config;
   pthread_mutex_lock(&vcpus_mutex);
   hv_vcpu_t cpuid = 0;
   for (; cpuid < kHvMaxVcpus; cpuid++) {
@@ -249,7 +256,11 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
     hv_vcpu_destroy(cpuid);
     return err;
   }
-  // TODO(zhuowei): set vmkeyhi_el2/vmkeylo_el2
+
+  if (config) {
+    vcpu_data->vcpu_zone->rw.controls.vmkeylo_el2 = _config->vmkeylo_el2;
+    vcpu_data->vcpu_zone->rw.controls.vmkeyhi_el2 = _config->vmkeyhi_el2;
+  }
 
   // Apple traps PMCCNTR_EL0 using this proprietary register, then translates the syndrome.
   // No, I don't know why Apple doesn't just use HDFGRTR_EL2 or MDCR_EL2
