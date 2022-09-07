@@ -1,0 +1,577 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		84C505C728C94540007CE8FF /* hv.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C505C328C9453F007CE8FF /* hv.m */; };
+		84C505C828C94540007CE8FF /* hv_kernel_structs.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C505C428C9453F007CE8FF /* hv_kernel_structs.h */; };
+		84C505C928C94540007CE8FF /* sysreg_offsets.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C505C528C9453F007CE8FF /* sysreg_offsets.h */; };
+		84C505D628C9456C007CE8FF /* hv_demo.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C505C628C94540007CE8FF /* hv_demo.m */; };
+		84C5064728C94ED3007CE8FF /* hv_vm.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063728C94ED3007CE8FF /* hv_vm.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064828C94ED3007CE8FF /* hv_base.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063828C94ED3007CE8FF /* hv_base.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064928C94ED3007CE8FF /* hv_error.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063928C94ED3007CE8FF /* hv_error.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064A28C94ED3007CE8FF /* hv_vmx.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063A28C94ED3007CE8FF /* hv_vmx.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064B28C94ED3007CE8FF /* hv_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063B28C94ED3007CE8FF /* hv_types.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064C28C94ED3007CE8FF /* hv.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063C28C94ED3007CE8FF /* hv.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064D28C94ED3007CE8FF /* hv_arch_x86.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063D28C94ED3007CE8FF /* hv_arch_x86.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064E28C94ED3007CE8FF /* hv_vm_allocate.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063E28C94ED3007CE8FF /* hv_vm_allocate.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5064F28C94ED3007CE8FF /* hv_vcpu.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5063F28C94ED3007CE8FF /* hv_vcpu.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065028C94ED3007CE8FF /* hv_vm_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064028C94ED3007CE8FF /* hv_vm_types.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065128C94ED3007CE8FF /* hv_vcpu_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064128C94ED3007CE8FF /* hv_vcpu_types.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065228C94ED3007CE8FF /* hv_vcpu_config.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064228C94ED3007CE8FF /* hv_vcpu_config.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065328C94ED3007CE8FF /* hv_vm_config.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064328C94ED3007CE8FF /* hv_vm_config.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065428C94ED3007CE8FF /* hv_intr.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064428C94ED3007CE8FF /* hv_intr.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065528C94ED3007CE8FF /* hv_arch_vmx.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064528C94ED3007CE8FF /* hv_arch_vmx.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065628C94ED3007CE8FF /* Hypervisor.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C5064628C94ED3007CE8FF /* Hypervisor.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		84C5065828C9506F007CE8FF /* Hypervisor.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 84C505B928C944C8007CE8FF /* Hypervisor.framework */; };
+		84C5065928C9506F007CE8FF /* Hypervisor.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 84C505B928C944C8007CE8FF /* Hypervisor.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		84C5065A28C9506F007CE8FF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 84C505B028C944C8007CE8FF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84C505B828C944C8007CE8FF;
+			remoteInfo = Hypervisor;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		84C505CD28C94560007CE8FF /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		84C5065C28C9506F007CE8FF /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				84C5065928C9506F007CE8FF /* Hypervisor.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		84C505B928C944C8007CE8FF /* Hypervisor.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Hypervisor.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		84C505C328C9453F007CE8FF /* hv.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hv.m; sourceTree = "<group>"; };
+		84C505C428C9453F007CE8FF /* hv_kernel_structs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hv_kernel_structs.h; sourceTree = "<group>"; };
+		84C505C528C9453F007CE8FF /* sysreg_offsets.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sysreg_offsets.h; sourceTree = "<group>"; };
+		84C505C628C94540007CE8FF /* hv_demo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hv_demo.m; sourceTree = "<group>"; };
+		84C505CF28C94560007CE8FF /* HypervisorDemo */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = HypervisorDemo; sourceTree = BUILT_PRODUCTS_DIR; };
+		84C505FC28C9476E007CE8FF /* module.modulemap */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+		84C5063728C94ED3007CE8FF /* hv_vm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vm.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vm.h"; sourceTree = "<group>"; };
+		84C5063828C94ED3007CE8FF /* hv_base.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_base.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_base.h"; sourceTree = "<group>"; };
+		84C5063928C94ED3007CE8FF /* hv_error.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_error.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_error.h"; sourceTree = "<group>"; };
+		84C5063A28C94ED3007CE8FF /* hv_vmx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vmx.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vmx.h"; sourceTree = "<group>"; };
+		84C5063B28C94ED3007CE8FF /* hv_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_types.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_types.h"; sourceTree = "<group>"; };
+		84C5063C28C94ED3007CE8FF /* hv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv.h; path = "$(DERIVED_FILE_DIR)/Headers/hv.h"; sourceTree = "<group>"; };
+		84C5063D28C94ED3007CE8FF /* hv_arch_x86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_arch_x86.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_arch_x86.h"; sourceTree = "<group>"; };
+		84C5063E28C94ED3007CE8FF /* hv_vm_allocate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vm_allocate.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vm_allocate.h"; sourceTree = "<group>"; };
+		84C5063F28C94ED3007CE8FF /* hv_vcpu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vcpu.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vcpu.h"; sourceTree = "<group>"; };
+		84C5064028C94ED3007CE8FF /* hv_vm_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vm_types.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vm_types.h"; sourceTree = "<group>"; };
+		84C5064128C94ED3007CE8FF /* hv_vcpu_types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vcpu_types.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vcpu_types.h"; sourceTree = "<group>"; };
+		84C5064228C94ED3007CE8FF /* hv_vcpu_config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vcpu_config.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vcpu_config.h"; sourceTree = "<group>"; };
+		84C5064328C94ED3007CE8FF /* hv_vm_config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_vm_config.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_vm_config.h"; sourceTree = "<group>"; };
+		84C5064428C94ED3007CE8FF /* hv_intr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_intr.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_intr.h"; sourceTree = "<group>"; };
+		84C5064528C94ED3007CE8FF /* hv_arch_vmx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = hv_arch_vmx.h; path = "$(DERIVED_FILE_DIR)/Headers/hv_arch_vmx.h"; sourceTree = "<group>"; };
+		84C5064628C94ED3007CE8FF /* Hypervisor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Hypervisor.h; path = "$(DERIVED_FILE_DIR)/Headers/Hypervisor.h"; sourceTree = "<group>"; };
+		84C5068128C9591A007CE8FF /* hv.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = hv.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		84C505B628C944C8007CE8FF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		84C505CC28C94560007CE8FF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84C5065828C9506F007CE8FF /* Hypervisor.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		84C505AF28C944C8007CE8FF = {
+			isa = PBXGroup;
+			children = (
+				84C5062528C94E9D007CE8FF /* Headers */,
+				84C505FB28C9476E007CE8FF /* Modules */,
+				84C505C628C94540007CE8FF /* hv_demo.m */,
+				84C505C428C9453F007CE8FF /* hv_kernel_structs.h */,
+				84C505C328C9453F007CE8FF /* hv.m */,
+				84C5068128C9591A007CE8FF /* hv.entitlements */,
+				84C505C528C9453F007CE8FF /* sysreg_offsets.h */,
+				84C505BA28C944C8007CE8FF /* Products */,
+				84C5065728C9506F007CE8FF /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		84C505BA28C944C8007CE8FF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				84C505B928C944C8007CE8FF /* Hypervisor.framework */,
+				84C505CF28C94560007CE8FF /* HypervisorDemo */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		84C505FB28C9476E007CE8FF /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				84C505FC28C9476E007CE8FF /* module.modulemap */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		84C5062528C94E9D007CE8FF /* Headers */ = {
+			isa = PBXGroup;
+			children = (
+				84C5064528C94ED3007CE8FF /* hv_arch_vmx.h */,
+				84C5063D28C94ED3007CE8FF /* hv_arch_x86.h */,
+				84C5063828C94ED3007CE8FF /* hv_base.h */,
+				84C5063928C94ED3007CE8FF /* hv_error.h */,
+				84C5064428C94ED3007CE8FF /* hv_intr.h */,
+				84C5063B28C94ED3007CE8FF /* hv_types.h */,
+				84C5064228C94ED3007CE8FF /* hv_vcpu_config.h */,
+				84C5064128C94ED3007CE8FF /* hv_vcpu_types.h */,
+				84C5063F28C94ED3007CE8FF /* hv_vcpu.h */,
+				84C5063E28C94ED3007CE8FF /* hv_vm_allocate.h */,
+				84C5064328C94ED3007CE8FF /* hv_vm_config.h */,
+				84C5064028C94ED3007CE8FF /* hv_vm_types.h */,
+				84C5063728C94ED3007CE8FF /* hv_vm.h */,
+				84C5063A28C94ED3007CE8FF /* hv_vmx.h */,
+				84C5063C28C94ED3007CE8FF /* hv.h */,
+				84C5064628C94ED3007CE8FF /* Hypervisor.h */,
+			);
+			name = Headers;
+			sourceTree = "<group>";
+		};
+		84C5065728C9506F007CE8FF /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		84C505B428C944C8007CE8FF /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84C5064C28C94ED3007CE8FF /* hv.h in Headers */,
+				84C5064F28C94ED3007CE8FF /* hv_vcpu.h in Headers */,
+				84C5064728C94ED3007CE8FF /* hv_vm.h in Headers */,
+				84C5064828C94ED3007CE8FF /* hv_base.h in Headers */,
+				84C5065328C94ED3007CE8FF /* hv_vm_config.h in Headers */,
+				84C5065528C94ED3007CE8FF /* hv_arch_vmx.h in Headers */,
+				84C5064D28C94ED3007CE8FF /* hv_arch_x86.h in Headers */,
+				84C5064E28C94ED3007CE8FF /* hv_vm_allocate.h in Headers */,
+				84C5065428C94ED3007CE8FF /* hv_intr.h in Headers */,
+				84C5064A28C94ED3007CE8FF /* hv_vmx.h in Headers */,
+				84C5064928C94ED3007CE8FF /* hv_error.h in Headers */,
+				84C5064B28C94ED3007CE8FF /* hv_types.h in Headers */,
+				84C5065128C94ED3007CE8FF /* hv_vcpu_types.h in Headers */,
+				84C5065628C94ED3007CE8FF /* Hypervisor.h in Headers */,
+				84C5065228C94ED3007CE8FF /* hv_vcpu_config.h in Headers */,
+				84C5065028C94ED3007CE8FF /* hv_vm_types.h in Headers */,
+				84C505C928C94540007CE8FF /* sysreg_offsets.h in Headers */,
+				84C505C828C94540007CE8FF /* hv_kernel_structs.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		84C505B828C944C8007CE8FF /* Hypervisor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84C505C028C944C8007CE8FF /* Build configuration list for PBXNativeTarget "Hypervisor" */;
+			buildPhases = (
+				84C5060428C94978007CE8FF /* ShellScript */,
+				84C505B428C944C8007CE8FF /* Headers */,
+				84C505B528C944C8007CE8FF /* Sources */,
+				84C505B628C944C8007CE8FF /* Frameworks */,
+				84C505B728C944C8007CE8FF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Hypervisor;
+			productName = Hypervisor;
+			productReference = 84C505B928C944C8007CE8FF /* Hypervisor.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		84C505CE28C94560007CE8FF /* HypervisorDemo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84C505D328C94560007CE8FF /* Build configuration list for PBXNativeTarget "HypervisorDemo" */;
+			buildPhases = (
+				84C505CB28C94560007CE8FF /* Sources */,
+				84C505CC28C94560007CE8FF /* Frameworks */,
+				84C505CD28C94560007CE8FF /* CopyFiles */,
+				84C5065C28C9506F007CE8FF /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				84C5065B28C9506F007CE8FF /* PBXTargetDependency */,
+			);
+			name = HypervisorDemo;
+			productName = HypervisorTest;
+			productReference = 84C505CF28C94560007CE8FF /* HypervisorDemo */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		84C505B028C944C8007CE8FF /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1400;
+				TargetAttributes = {
+					84C505B828C944C8007CE8FF = {
+						CreatedOnToolsVersion = 14.0;
+					};
+					84C505CE28C94560007CE8FF = {
+						CreatedOnToolsVersion = 14.0;
+					};
+				};
+			};
+			buildConfigurationList = 84C505B328C944C8007CE8FF /* Build configuration list for PBXProject "Hypervisor" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 84C505AF28C944C8007CE8FF;
+			productRefGroup = 84C505BA28C944C8007CE8FF /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				84C505B828C944C8007CE8FF /* Hypervisor */,
+				84C505CE28C94560007CE8FF /* HypervisorDemo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		84C505B728C944C8007CE8FF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		84C5060428C94978007CE8FF /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Headers",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "rsync -a \"$DEVELOPER_SDK_DIR/MacOSX.sdk/System/Library/Frameworks/Hypervisor.framework/Versions/A/Headers/\" \"$SCRIPT_OUTPUT_FILE_0\"\nfor i in \"$SCRIPT_OUTPUT_FILE_0/\"*\ndo\n    sed -i '' -e \"s/API_UNAVAILABLE\\\\(.*\\\\)//g\" \"$i\"\ndone\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		84C505B528C944C8007CE8FF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84C505C728C94540007CE8FF /* hv.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		84C505CB28C94560007CE8FF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84C505D628C9456C007CE8FF /* hv_demo.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		84C5065B28C9506F007CE8FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 84C505B828C944C8007CE8FF /* Hypervisor */;
+			targetProxy = 84C5065A28C9506F007CE8FF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		84C505BE28C944C8007CE8FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		84C505BF28C944C8007CE8FF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		84C505C128C944C8007CE8FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULEMAP_FILE = Modules/module.modulemap;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pomegranate.Hypervisor;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		84C505C228C944C8007CE8FF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULEMAP_FILE = Modules/module.modulemap;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pomegranate.Hypervisor;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		84C505D428C94560007CE8FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = hv.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		84C505D528C94560007CE8FF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = hv.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		84C505B328C944C8007CE8FF /* Build configuration list for PBXProject "Hypervisor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84C505BE28C944C8007CE8FF /* Debug */,
+				84C505BF28C944C8007CE8FF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		84C505C028C944C8007CE8FF /* Build configuration list for PBXNativeTarget "Hypervisor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84C505C128C944C8007CE8FF /* Debug */,
+				84C505C228C944C8007CE8FF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		84C505D328C94560007CE8FF /* Build configuration list for PBXNativeTarget "HypervisorDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84C505D428C94560007CE8FF /* Debug */,
+				84C505D528C94560007CE8FF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 84C505B028C944C8007CE8FF /* Project object */;
+}
