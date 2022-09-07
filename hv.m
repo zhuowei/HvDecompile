@@ -439,6 +439,7 @@ static bool find_sys_reg(hv_sys_reg_t sys_reg, uint64_t* offset, uint64_t* sync_
 //              "HV_SYS_REG_DBGBVR0_EL1");
 
 hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* value) {
+  hv_return_t err;
   struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
   struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
   switch (sys_reg) {
@@ -478,7 +479,7 @@ hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* 
     default:
       break;
   }
-  // TODO(zhuowei): handle the special cases
+  // handle the special cases
   uint64_t offset = 0;
   uint64_t sync_mask = 0;
   bool found = find_sys_reg(sys_reg, &offset, &sync_mask);
@@ -486,15 +487,18 @@ hv_return_t hv_vcpu_get_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t* 
     printf("invalid get sys reg: %x\n", sys_reg);
     return HV_BAD_ARGUMENT;
   }
-  if (sync_mask) {
-    // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC only when needed
-    hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
+  if ((sync_mask != 0) &&
+     ((vcpu_zone->rw.state_dirty & sync_mask) == 0 && (vcpu_zone->ro.state_valid & sync_mask) == 0)) {
+    if ((err = hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0)) != 0) {
+      return err;
+    }
   }
   *value = *(uint64_t*)((char*)(&vcpu_zone->rw) + offset);
   return 0;
 }
 
 hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t value) {
+  hv_return_t err;
   struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
   struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
   switch (sys_reg) {
@@ -539,7 +543,7 @@ hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t v
     default:
       break;
   }
-  // TODO(zhuowei): handle the special cases
+  // handle the special cases
   uint64_t offset = 0;
   uint64_t sync_mask = 0;
   bool found = find_sys_reg(sys_reg, &offset, &sync_mask);
@@ -547,12 +551,15 @@ hv_return_t hv_vcpu_set_sys_reg(hv_vcpu_t vcpu, hv_sys_reg_t sys_reg, uint64_t v
     printf("invalid set sys reg: %x\n", sys_reg);
     return HV_BAD_ARGUMENT;
   }
-  if (sync_mask) {
-    // TODO(zhuowei): HV_CALL_VCPU_SYSREGS_SYNC only when needed
-    hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0);
-    vcpu_zone->rw.state_dirty |= sync_mask;
+  if ((sync_mask != 0) && (((vcpu_zone->ro.state_valid & sync_mask) == 0))) {
+    if ((err = hv_trap(HV_CALL_VCPU_SYSREGS_SYNC, 0)) != 0) {
+      return err;
+    }
   }
   *(uint64_t*)((char*)(&vcpu_zone->rw) + offset) = value;
+  if (sync_mask != 0) {
+    vcpu_zone->rw.state_dirty |= sync_mask;
+  }
   return 0;
 }
 
