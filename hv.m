@@ -224,7 +224,6 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
     pthread_mutex_unlock(&vcpus_mutex);
     return HV_NO_RESOURCES;
   }
-  // TODO(zhuowei): support more than one
   struct hv_vcpu_data* vcpu_data = &vcpus[cpuid];
   struct hv_vcpu_create_kernel_args args = {
       .id = cpuid,
@@ -238,19 +237,19 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
   printf("vcpu_zone = %p\n", args.output_vcpu_zone);
   if (args.output_vcpu_zone->ro.ver != kHvVcpuMagic) {
     printf("Invalid magic! expected %llx, got %llx\n", kHvVcpuMagic, args.output_vcpu_zone->ro.ver);
-    const bool yolo = true;
-    if (!yolo) {
-      hv_trap(HV_CALL_VCPU_DESTROY, nil);
-      pthread_mutex_unlock(&vcpus_mutex);
-      return HV_UNSUPPORTED;
-    }
+#ifndef USE_KERNEL_BYPASS_CHECKS
+    hv_trap(HV_CALL_VCPU_DESTROY, nil);
+    pthread_mutex_unlock(&vcpus_mutex);
+    return HV_UNSUPPORTED;
+#else
     printf("yoloing\n");
+#endif
   }
   vcpu_data->vcpu_zone = args.output_vcpu_zone;
   *vcpu = cpuid;
   *exit = &vcpu_data->exit;
   pthread_mutex_unlock(&vcpus_mutex);
-  // TODO(zhuowei): configure regs from HV_CALL_VM_GET_CAPABILITIES
+  // configure regs from HV_CALL_VM_GET_CAPABILITIES
   err = _hv_vcpu_config_get_feature_regs(&vcpu_data->feature_regs);
   if (err) {
     hv_vcpu_destroy(cpuid);
@@ -281,7 +280,6 @@ hv_return_t hv_vcpu_destroy(hv_vcpu_t vcpu) {
   pthread_mutex_lock(&vcpus_mutex);
   struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
   vcpu_data->vcpu_zone = nil;
-  // TODO(zhuowei): vcpu + 0xe8 = 0???
   vcpu_data->pending_interrupts = 0;
   pthread_mutex_unlock(&vcpus_mutex);
   return 0;
