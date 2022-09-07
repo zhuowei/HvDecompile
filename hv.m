@@ -1,4 +1,5 @@
 // Decompiled by hand (based-ish on a Ghidra decompile) from Hypervisor.framework on macOS 12.0b1
+// 06/09/22: updated for 12.5.1
 @import Darwin;
 @import Dispatch;
 #include <Hypervisor/Hypervisor.h>
@@ -61,6 +62,11 @@ struct hv_vcpu_data_feature_regs {
   uint64_t aa64mmfr2_el1;  // 0x38
   uint64_t aa64pfr0_el1;   // 0x40
   uint64_t aa64pfr1_el1;   // 0x48
+  uint64_t ctr_el0;        // 0x50
+  uint64_t dczid_el0;      // 0x58
+  uint64_t clidr_el1;      // 0x60
+  uint64_t ccsidr_el1_inst[8]; // 0x68
+  uint64_t ccsidr_el1_data_or_unified[8]; // 0xA8
 };
 
 static hv_return_t _hv_vcpu_config_get_feature_regs(
@@ -80,6 +86,13 @@ static hv_return_t _hv_vcpu_config_get_feature_regs(
   feature_regs->aa64mmfr2_el1 = caps->id_aa64mmfr2_el1;
   feature_regs->aa64pfr0_el1 = caps->id_aa64pfr0_el1;
   feature_regs->aa64pfr1_el1 = caps->id_aa64pfr1_el1;
+  feature_regs->ctr_el0 = caps->ctr_el0;
+  feature_regs->dczid_el0 = caps->dczid_el0;
+  feature_regs->clidr_el1 = caps->clidr_el1;
+  static_assert(sizeof(feature_regs->ccsidr_el1_inst) == sizeof(caps->ccsidr_el1_inst), "ccsidr_el1_inst size");
+  memcpy(feature_regs->ccsidr_el1_inst, caps->ccsidr_el1_inst, sizeof(feature_regs->ccsidr_el1_inst));
+  static_assert(sizeof(feature_regs->ccsidr_el1_data_or_unified) == sizeof(caps->ccsidr_el1_data_or_unified), "ccsidr_el1_data_or_unified size");
+  memcpy(feature_regs->ccsidr_el1_data_or_unified, caps->ccsidr_el1_data_or_unified, sizeof(feature_regs->ccsidr_el1_data_or_unified));
   return 0;
 }
 
@@ -148,10 +161,10 @@ static_assert(sizeof(struct hv_vcpu_zone) == 0x8000, "hv_vcpu_zone");
 struct hv_vcpu_data {
   struct hv_vcpu_zone* vcpu_zone;                 // 0x0
   struct hv_vcpu_data_feature_regs feature_regs;  // 0x8
-  char filler[0xe8 - 0x50];                       // 0x50
   uint64_t pending_interrupts;                    // 0xe8
   hv_vcpu_exit_t exit;                            // 0xf0
-  char filler2[0x8];                              // 0x110
+  uint32_t timer_enabled;                         // 0x110
+  uint32_t field_114;                             // 0x114
 };
 
 static_assert(sizeof(struct hv_vcpu_data) == 0x118, "hv_vcpu_data");
