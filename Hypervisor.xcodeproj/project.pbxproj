@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		84C505C728C94540007CE8FF /* hv.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C505C328C9453F007CE8FF /* hv.m */; };
+		84C505C728C94540007CE8FF /* hv.c in Sources */ = {isa = PBXBuildFile; fileRef = 84C505C328C9453F007CE8FF /* hv.c */; };
 		84C505C828C94540007CE8FF /* hv_kernel_structs.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C505C428C9453F007CE8FF /* hv_kernel_structs.h */; };
 		84C505C928C94540007CE8FF /* sysreg_offsets.h in Headers */ = {isa = PBXBuildFile; fileRef = 84C505C528C9453F007CE8FF /* sysreg_offsets.h */; };
 		84C505D628C9456C007CE8FF /* hv_demo.m in Sources */ = {isa = PBXBuildFile; fileRef = 84C505C628C94540007CE8FF /* hv_demo.m */; };
@@ -66,7 +66,7 @@
 
 /* Begin PBXFileReference section */
 		84C505B928C944C8007CE8FF /* Hypervisor.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Hypervisor.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		84C505C328C9453F007CE8FF /* hv.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hv.m; sourceTree = "<group>"; };
+		84C505C328C9453F007CE8FF /* hv.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = hv.c; sourceTree = "<group>"; };
 		84C505C428C9453F007CE8FF /* hv_kernel_structs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hv_kernel_structs.h; sourceTree = "<group>"; };
 		84C505C528C9453F007CE8FF /* sysreg_offsets.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sysreg_offsets.h; sourceTree = "<group>"; };
 		84C505C628C94540007CE8FF /* hv_demo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hv_demo.m; sourceTree = "<group>"; };
@@ -117,7 +117,7 @@
 				84C505FB28C9476E007CE8FF /* Modules */,
 				84C505C628C94540007CE8FF /* hv_demo.m */,
 				84C505C428C9453F007CE8FF /* hv_kernel_structs.h */,
-				84C505C328C9453F007CE8FF /* hv.m */,
+				84C505C328C9453F007CE8FF /* hv.c */,
 				84C5068128C9591A007CE8FF /* hv.entitlements */,
 				84C505C528C9453F007CE8FF /* sysreg_offsets.h */,
 				84C505BA28C944C8007CE8FF /* Products */,
@@ -313,7 +313,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				84C505C728C94540007CE8FF /* hv.m in Sources */,
+				84C505C728C94540007CE8FF /* hv.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -458,7 +458,6 @@
 		84C505C128C944C8007CE8FF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_ENABLE_OBJC_ARC = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
@@ -491,7 +490,6 @@
 		84C505C228C944C8007CE8FF /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_ENABLE_OBJC_ARC = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;

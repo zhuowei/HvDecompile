@@ -1,10 +1,12 @@
 // Decompiled by hand (based-ish on a Ghidra decompile) from Hypervisor.framework on macOS 12.0b1
 // 06/09/22: updated for 12.5.1
-@import Darwin;
-@import Dispatch;
-#include <Hypervisor/Hypervisor.h>
 #include <assert.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <dispatch/dispatch.h>
+#include <mach/vm_types.h>
 #include "hv_kernel_structs.h"
+#include "hv_vm_types.h"
 
 static_assert(sizeof(hv_vcpu_exit_t) == 0x20, "hv_vcpu_exit");
 
@@ -85,7 +87,7 @@ struct hv_vcpu_data_feature_regs {
 
 static hv_return_t _hv_vcpu_config_get_feature_regs(
     struct hv_vcpu_data_feature_regs* feature_regs) {
-  hv_capabilities_t* caps = nil;
+  hv_capabilities_t* caps = NULL;
   hv_return_t err = _hv_get_capabilities(&caps);
   if (err) {
     return err;
@@ -164,13 +166,13 @@ hv_return_t hv_vm_map(void* addr, hv_ipa_t ipa, size_t size, hv_memory_flags_t f
 
 hv_return_t hv_vm_unmap(hv_ipa_t ipa, size_t size) {
   struct hv_vm_map_kernel_args args = {
-      .addr = nil, .ipa = ipa, .size = size, .flags = 0, .asid = 0};
+      .addr = NULL, .ipa = ipa, .size = size, .flags = 0, .asid = 0};
   return hv_trap(HV_CALL_VM_UNMAP, &args);
 }
 
 hv_return_t hv_vm_protect(hv_ipa_t ipa, size_t size, hv_memory_flags_t flags) {
   struct hv_vm_map_kernel_args args = {
-      .addr = nil, .ipa = ipa, .size = size, .flags = flags, .asid = 0};
+      .addr = NULL, .ipa = ipa, .size = size, .flags = flags, .asid = 0};
   return hv_trap(HV_CALL_VM_PROTECT, &args);
 }
 
@@ -238,7 +240,7 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
   if (args.output_vcpu_zone->ro.ver != kHvVcpuMagic) {
     printf("Invalid magic! expected %llx, got %llx\n", kHvVcpuMagic, args.output_vcpu_zone->ro.ver);
 #ifndef USE_KERNEL_BYPASS_CHECKS
-    hv_trap(HV_CALL_VCPU_DESTROY, nil);
+    hv_trap(HV_CALL_VCPU_DESTROY, NULL);
     pthread_mutex_unlock(&vcpus_mutex);
     return HV_UNSUPPORTED;
 #else
@@ -265,21 +267,24 @@ hv_return_t hv_vcpu_create(hv_vcpu_t* vcpu, hv_vcpu_exit_t** exit, hv_vcpu_confi
   // No, I don't know why Apple doesn't just use HDFGRTR_EL2 or MDCR_EL2
   vcpu_data->vcpu_zone->rw.controls.hacr_el2 |= 1ull << 56;
   // TID3: trap the feature regs so we can handle these ourselves
-  // TODO(zhuowei): or not... we don't handle these yet!
-  // vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= 0x40000ull;
-  // TODO(zhuowei): if ro hacr has a bit set, clear rw hcr_el2 TIDCP?!
+  vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= 0x40000ull;
+  // if ro hacr has a bit set, clear rw hcr_el2 TIDCP?!
+  if ((vcpu_data->vcpu_zone->ro.controls.hacr_el2 >> 4 & 1) != 0) {
+    vcpu_data->vcpu_zone->rw.controls.hcr_el2 &= ~0x100000;
+  }
+  vcpu_data->vcpu_zone->rw.controls.hcr_el2 |= 0x80000;
   vcpu_data->vcpu_zone->rw.state_dirty |= 0x4;
   return 0;
 }
 
 hv_return_t hv_vcpu_destroy(hv_vcpu_t vcpu) {
-  kern_return_t err = hv_trap(HV_CALL_VCPU_DESTROY, nil);
+  kern_return_t err = hv_trap(HV_CALL_VCPU_DESTROY, NULL);
   if (err) {
     return err;
   }
   pthread_mutex_lock(&vcpus_mutex);
   struct hv_vcpu_data* vcpu_data = &vcpus[vcpu];
-  vcpu_data->vcpu_zone = nil;
+  vcpu_data->vcpu_zone = NULL;
   vcpu_data->pending_interrupts = 0;
   pthread_mutex_unlock(&vcpus_mutex);
   return 0;
@@ -299,7 +304,7 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
   }
   vcpu_data->timer_enabled = vcpu_data->vcpu_zone->rw.controls.timer & 1;
   while (true) {
-    hv_return_t err = hv_trap(HV_CALL_VCPU_RUN, nil);
+    hv_return_t err = hv_trap(HV_CALL_VCPU_RUN, NULL);
     if (err) {
       return err;
     }
