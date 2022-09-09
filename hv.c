@@ -640,133 +640,77 @@ void sync_and_dirty_banked_state(struct hv_vcpu_zone *vcpu_zone, uint64_t state)
   return;
 }
 
-static bool deliver_msr_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t* exit) {
+static bool deliver_msr_trap(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t* exit) {
   uint64_t esr = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
   uint32_t reg = (esr >> 5) & 0x1f;
+  uint32_t sysreg = esr & 0x3ffc1e;
   struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
   if ((esr & 0x300000) == 0x200000) {
     if ((vcpu_zone->rw.controls.mdcr_el2 >> 9 & 1) != 0) {
       return false;
     }
-    uint32_t uVar6 = esr & 0x3ffc1e;
     if ((esr & 1) == 0) {
-      if (uVar6 < 0x20c00a) {
-        if (uVar6 == 0x200004) {
+      switch (sysreg) {
+        case 0x200004:
           vcpu_zone->rw.dbgregs.mdccint_el1 = vcpu_zone->rw.regs.x[reg];
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        }
-        if (uVar6 != 0x20c008) {
-          return false;
-        }
-      } else if (uVar6 != 0x20c00a) {
-        if (uVar6 == 0x240000) {
+          break;
+        case 0x240000:
           vcpu_zone->rw.dbgregs.osdtrrx_el1 = vcpu_zone->rw.regs.x[reg];
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        }
-        if (uVar6 != 0x240006) {
+          break;
+        case 0x20c008:
+        case 0x240006:
+          vcpu_zone->rw.dbgregs.osdtrtx_el1 = vcpu_zone->rw.regs.x[reg];
+          break;
+        default:
           return false;
-        }
       }
-      vcpu_zone->rw.dbgregs.osdtrtx_el1 = vcpu_zone->rw.regs.x[reg];
-      vcpu_zone->rw.regs.pc += 4;
-      return true;
-    }
-
-    if (uVar6 < 0x20c00a) {
-      if (uVar6 == 0x200004) {
-        vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.mdccint_el1;
-        vcpu_zone->rw.regs.pc += 4;
-        return true;
-      } else {
-        if (uVar6 != 0x20c002) {
-          if (uVar6 != 0x20c008) {
-            return false;
-          }
-          vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrrx_el1;
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        }
-        vcpu_zone->rw.regs.x[reg] = 0;
-        vcpu_zone->rw.regs.pc += 4;
-        return true;
-      }
-    } else if ((uVar6 == 0x20c00a) || (uVar6 == 0x240000)) {
-      vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrrx_el1;
-      vcpu_zone->rw.regs.pc += 4;
-      return true;
     } else {
-      if (uVar6 != 0x240006) {
-        return false;
+      switch (sysreg) {
+        case 0x200004:
+          vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.mdccint_el1;
+          break;
+        case 0x20c008:
+        case 0x20c00a:
+        case 0x240000:
+          vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrrx_el1;
+          break;
+        case 0x240006:
+          vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrtx_el1;
+          break;
+        case 0x20c002:
+          vcpu_zone->rw.regs.x[reg] = 0;
+          break;
+        default:
+          return false;
       }
-      vcpu_zone->rw.regs.x[reg] = vcpu_zone->rw.dbgregs.osdtrtx_el1;
-      vcpu_zone->rw.regs.pc += 4;
-      return true;
     }
-  } else { // 230
+  } else {
     if ((esr & 1) == 0) {
       return false;
     }
-    uint32_t uVar6 = esr & 0x3ffc1e;
-    if (0x340003 < uVar6) {
-      if (uVar6 < 0x3a0002) {
-        if (uVar6 < 0x360002) {
-          if ((uVar6 != 0x340004) && (uVar6 != 0x340006)) {
-            if (uVar6 != 0x34000e) {
-              return false;
-            }
-            vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr2_el1;
-            vcpu_zone->rw.regs.pc += 4;
-            return true;
-          }
-        } else if (uVar6 - 0x380002 < 9) {
-          if (uVar6 == 0x380006) {
-            return false;
-          }
-          vcpu_zone->rw.regs.x[reg] = 0;
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        } else if (uVar6 != 0x360002) {
-          if (uVar6 != 0x360004) {
-            return false;
-          }
-          vcpu_zone->rw.regs.x[reg] = 0;
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        }
-      } else if (uVar6 < 0x3c0002) {
-        if ((uVar6 != 0x3a0002) && (uVar6 != 0x3a0004)) {
-          if (uVar6 != 0x3a000a) {
-            return false;
-          }
-          vcpu_zone->rw.regs.x[reg] = 0;
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        } else {
-          vcpu_zone->rw.regs.x[reg] = 0;
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        }
-      } else if ((uVar6 != 0x3c0002) && (uVar6 != 0x3c0004)) {
-        if (uVar6 != 0x3e0002) {
-          return false;
-        } else {
-          vcpu_zone->rw.regs.x[reg] = 0;
-          vcpu_zone->rw.regs.pc += 4;
-          return true;
-        }
-      }
-
-      vcpu_zone->rw.regs.x[reg] = 0;
-      vcpu_zone->rw.regs.pc += 4;
-      return true;
-    }
-
-    if (uVar6 - 0x300002 < 0xd) {
-      switch(uVar6) {
-      default:
+    switch (sysreg) {
+      case 0x300002:
+      case 0x300004:
+      case 0x300006:
+      case 0x320002:
+      case 0x320004:
+      case 0x320006:
+      case 0x340002:
+      case 0x340004:
+      case 0x340006:
+      case 0x360002:
+      case 0x360004:
+      case 0x380002:
+      case 0x380004:
+      case 0x3a0002:
+      case 0x3a0004:
+      case 0x3c0002:
+      case 0x3c0004:
+      case 0x3e0002:
         vcpu_zone->rw.regs.x[reg] = 0;
+        break;
+      case 0x34000e:
+        vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr2_el1;
         break;
       case 0x300008:
         vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64pfr0_el1;
@@ -780,20 +724,6 @@ static bool deliver_msr_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t
       case 0x30000e:
         vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr0_el1;
         break;
-      }
-    } else {
-      if (0xc < uVar6 - 0x320002) {
-        if (uVar6 != 0x340002) {
-          return false;
-        }
-        vcpu_zone->rw.regs.x[reg] = 0;
-        vcpu_zone->rw.regs.pc += 4;
-        return true;
-      }
-      switch(uVar6) {
-      default:
-        vcpu_zone->rw.regs.x[reg] = 0;
-        break;
       case 0x320008:
         vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64pfr1_el1;
         break;
@@ -806,14 +736,15 @@ static bool deliver_msr_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t
       case 0x32000e:
         vcpu_zone->rw.regs.x[reg] = vcpu_data->feature_regs.aa64mmfr1_el1;
         break;
-      }
+      default:
+        return false;
     }
-    vcpu_zone->rw.regs.pc += 4;
-    return true;
   }
+  vcpu_zone->rw.regs.pc += 4;
+  return true;
 }
 
-static bool deliver_pac_exception(struct hv_vcpu_data* vcpu_data) {
+static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
   uint64_t esr = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
   struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
   uint32_t uVar6;
@@ -912,7 +843,7 @@ static bool deliver_ordinary_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_e
   exit->exception.physical_address = vcpu_data->vcpu_zone->ro.exit.vmexit_hpfar;
   
   if ((esr >> 26) == 0x16) {
-    return deliver_pac_exception(vcpu_data);
+    return deliver_pac_trap(vcpu_data);
   } else if ((esr >> 26) == 0x3f) {
     if (vcpu_zone->ro.exit.vmexit_reason != 8) {
       deliver_uncategorized_exception(vcpu_data);
@@ -937,7 +868,7 @@ static bool deliver_ordinary_exception(struct hv_vcpu_data* vcpu_data, hv_vcpu_e
     }
     return false;
   } else if ((esr >> 26) == 0x18) {
-    return deliver_msr_exception(vcpu_data, exit);
+    return deliver_msr_trap(vcpu_data, exit);
   }
   return false;
 }
