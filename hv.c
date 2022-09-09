@@ -330,7 +330,7 @@ hv_return_t hv_vcpu_run(hv_vcpu_t vcpu) {
       }
       case 3:
       case 4: {
-        if (vcpu_data->timer_enabled && vcpu_data->vcpu_zone->rw.banked_sysregs.cntv_ctl_el0 == 5) {
+        if (!vcpu_data->timer_enabled && vcpu_data->vcpu_zone->rw.banked_sysregs.cntv_ctl_el0 == 5) {
           exit->reason = HV_EXIT_REASON_VTIMER_ACTIVATED;
           // mask vtimer
           vcpu_data->vcpu_zone->rw.controls.timer |= 1ull;
