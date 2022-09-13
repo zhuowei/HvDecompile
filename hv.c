@@ -392,7 +392,7 @@ hv_return_t hv_vcpu_set_reg(hv_vcpu_t vcpu, hv_reg_t reg, uint64_t value) {
   if (reg < HV_REG_FP) {
     vcpu_zone->rw.regs.x[reg] = value;
   } else if (reg == HV_REG_FP) {
-    vcpu_zone->rw.regs.lr = value;
+    vcpu_zone->rw.regs.fp = value;
   } else if (reg == HV_REG_LR) {
     vcpu_zone->rw.regs.lr = value;
   } else if (reg == HV_REG_PC) {
