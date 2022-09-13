@@ -744,6 +744,7 @@ static bool deliver_msr_trap(struct hv_vcpu_data* vcpu_data, hv_vcpu_exit_t* exi
   return true;
 }
 
+// https://github.com/apple-oss-distributions/xnu/blob/e7776783b89a353188416a9a346c6cdb4928faad/pexpert/pexpert/arm64/VMAPPLE.h#L84
 static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
   uint64_t esr = vcpu_data->vcpu_zone->ro.exit.vmexit_esr;
   struct hv_vcpu_zone* vcpu_zone = vcpu_data->vcpu_zone;
@@ -762,6 +763,7 @@ static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
   }
   switch(uVar6) {
   default:
+    // VMAPPLE_PAC_SET_INITIAL_STATE
     vcpu_zone->rw.extregs.apctl_el1 = 0x11;
     sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
     vcpu_zone->rw.extregs.apiakeylo_el1 = 0xfeedfacefeedfacf;
@@ -781,6 +783,7 @@ static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
     vcpu_zone->rw.extregs.kernkeyhi_el1 = 0xfeedfacefeedfad4;
     break;
   case 1:
+    // VMAPPLE_PAC_GET_DEFAULT_KEYS
     vcpu_zone->rw.regs.x[1] = 0xfeedfacefeedfacf;
     vcpu_zone->rw.regs.x[0] = 0;
     vcpu_zone->rw.regs.x[3] = 0xfeedfacefeedfad3;
@@ -788,6 +791,7 @@ static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
     vcpu_zone->rw.regs.x[4] = 0xfeedfacefeedfad9;
     return true;
   case 2:
+    // VMAPPLE_PAC_SET_A_KEYS
     uVar9 = vcpu_zone->rw.regs.x[1];
     sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
     vcpu_zone->rw.extregs.apiakeylo_el1 = uVar9;
@@ -796,6 +800,7 @@ static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
     vcpu_zone->rw.extregs.apdakeyhi_el1 = uVar9 + 3;
     break;
   case 3:
+    // VMAPPLE_PAC_SET_B_KEYS
     uVar9 = vcpu_zone->rw.regs.x[1];
     sync_and_dirty_banked_state(vcpu_zone, 0x2000000000000000);
     vcpu_zone->rw.extregs.apibkeylo_el1 = uVar9;
@@ -804,12 +809,14 @@ static bool deliver_pac_trap(struct hv_vcpu_data* vcpu_data) {
     vcpu_zone->rw.extregs.apdbkeyhi_el1 = uVar9 + 3;
     break;
   case 4:
+    // VMAPPLE_PAC_SET_EL0_DIVERSIFIER
     uVar9 = vcpu_zone->rw.regs.x[1];
     sync_and_dirty_banked_state(vcpu_zone, 0x1000000000000000);
     vcpu_zone->rw.extregs.kernkeylo_el1 = uVar9;
     vcpu_zone->rw.extregs.kernkeyhi_el1 = uVar9 + 1;
     break;
   case 5:
+    // VMAPPLE_PAC_SET_EL0_DIVERSIFIER_AT_EL1
     uVar9 = vcpu_zone->rw.regs.x[2];
     sync_and_dirty_banked_state(vcpu_zone, 0x1000000000000000);
     vcpu_zone->rw.extregs.kernkeylo_el1 = uVar9;
